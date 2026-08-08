@@ -2,6 +2,27 @@ const OTP_PRODUCTION_URL = 'https://script.google.com/macros/s/AKfycbw32BGSXwFVO
 
 function doPost(e) {
   const action = String((e && e.parameter && e.parameter.action) || '').trim();
+
+  if (action === 'hubLaunch') {
+    const source = String((e && e.parameter && e.parameter.source) || '').trim();
+    const token = String((e && e.parameter && e.parameter.token) || '').trim();
+    try {
+      return hubLaunchOps_(source, token);
+    } catch (err) {
+      return renderHubLaunchError_(safeErrorMessage_(err));
+    }
+  }
+
+  if (action === 'hubAdminLogin') {
+    const username = String((e && e.parameter && e.parameter.username) || '').trim();
+    const password = String((e && e.parameter && e.parameter.password) || '');
+    try {
+      return renderHubAdminLoginSuccess_(loginAdminPassword(username, password));
+    } catch (err) {
+      return renderHubLaunchError_(safeErrorMessage_(err));
+    }
+  }
+
   if (action === 'adminPasswordLogin') {
     const username = String((e && e.parameter && e.parameter.username) || '').trim();
     const password = String((e && e.parameter && e.parameter.password) || '');
@@ -12,6 +33,7 @@ function doPost(e) {
       return passwordLoginErrorPage_(safeErrorMessage_(err));
     }
   }
+
   if (action === 'requestOtp') {
     const email = String((e && e.parameter && e.parameter.email) || '').trim();
     try {
