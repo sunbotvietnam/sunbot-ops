@@ -6,9 +6,11 @@
 - Source: GitHub `sunbotvietnam/sunbot-ops`.
 - Google owner: `hrmanager.kiro@gmail.com`.
 - Runtime: Google Apps Script Web App, execute as deployer.
+- Production URL được ghi trong `docs/PRODUCTION_OWNER.md` và `docs/GOOGLE_ARCHITECTURE.md`.
 - Data: Google Sheets `SUNBOT_OPS_DATABASE` trong `SUNBOT OPS/00_SYSTEM`.
 - File/bằng chứng: Google Drive.
 - Authentication V1: passwordless **email OTP** gửi bằng `MailApp` tới email ACTIVE trong `NHAN_SU`; backend phát session token HMAC-SHA256 12 giờ. Không phụ thuộc Google Cloud OAuth Client ID.
+- Deployment ID được pin trong `apps-script/.production-deployment-id`; GitHub Actions redeploy đúng URL production sau merge.
 
 ## Không được phá các nguyên tắc sau
 1. Không hard-code tên nhân sự vào business logic.
