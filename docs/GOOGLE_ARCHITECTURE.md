@@ -1,22 +1,22 @@
 # SUNBOT OPS – Kiến trúc Google-native
 
 ## Mục tiêu
-SUNBOT OPS chỉ dùng hai nền tảng vận hành chính:
+SUNBOT OPS dùng hai nền tảng vận hành chính:
 
-1. **GitHub** – nguồn sự thật duy nhất của source code, tài liệu, lịch sử thay đổi và Pull Request.
+1. **GitHub** – source code, tài liệu, lịch sử thay đổi, Pull Request và CI/CD.
 2. **Google Drive ecosystem** – Apps Script Web App + Google Sheets + Google Drive folders + triggers.
 
-Không cần PostgreSQL, Docker, VPS hay server Node cho V1.
+Không cần PostgreSQL, Docker, VPS, server Node hoặc Google Cloud OAuth Client ID cho V1.
 
 ## Runtime
 
 ```text
 Người dùng
-   ↓ Google Sign-In
-Apps Script Web App
+   ↓ email + OTP
+Apps Script Web App (execute as deployer)
    ├─ Frontend HTML/CSS/JS
-   ├─ Business logic
-   ├─ Google token verification
+   ├─ Passwordless email OTP
+   ├─ HMAC session token
    ├─ Permission engine
    ↓
 Google Sheets database
@@ -24,19 +24,20 @@ Google Sheets database
 Drive folders / tài liệu
    ↓
 AI_FEED
-   ↓
-Intelligence HTTP endpoint
 ```
 
-## Vì sao vẫn là Frontend + Backend
-Frontend nằm trong `Index.html`, `Styles.html`, `Scripts.html`.
-Backend nằm trong `Code.gs` và không cho frontend thao tác Sheet trực tiếp.
-Mọi thao tác đi qua hàm `api(idToken, action, payload)`.
+## Authentication V1
+- Chỉ email có trạng thái ACTIVE trong `NHAN_SU` mới được gửi OTP.
+- OTP 6 số, thời hạn 10 phút, giới hạn số lần nhập và resend.
+- OTP chỉ lưu dạng HMAC trong CacheService, không lưu plaintext.
+- Session token có thời hạn 12 giờ và được ký HMAC-SHA256 bằng secret trong Script Properties.
+- Frontend lưu session token cục bộ và gửi qua `apiSession(...)`.
+- Web App chạy dưới quyền deployer nên nhân viên không cần quyền trực tiếp với Google Sheets/Drive.
 
 ## Production owner hiện tại
 Tài khoản Google sở hữu hệ thống: `hrmanager.kiro@gmail.com`.
 
-Drive production hiện đã có:
+Drive production đã có:
 - folder `SUNBOT OPS`;
 - các folder `00_SYSTEM`, `01_TRUONG_DOI_TAC`, `02_HO_SO_THANH_TOAN`, `03_DE_XUAT_HOP_DONG`, `04_MINH_CHUNG`, `05_BAO_CAO`, `99_BACKUP`;
 - Google Sheet `SUNBOT_OPS_DATABASE` đặt trong `00_SYSTEM`;
@@ -44,57 +45,26 @@ Drive production hiện đã có:
 - user khởi tạo `hrmanager.kiro@gmail.com` với role ADMIN + CEO;
 - role/permission cơ bản đã được seed.
 
+## Web App production
+URL production:
+`https://script.google.com/macros/s/AKfycbw23iMjAMi2Ed-OgSwbQQfgdFRwVmrb04Br4ihOqQuz4VOsq09nfsx46Kp--3qzyFg4/exec`
+
+Deployment ID được pin trong `apps-script/.production-deployment-id`. Sau mỗi merge có thay đổi `apps-script/**`, GitHub Actions tự:
+1. `clasp push` source;
+2. tạo immutable version;
+3. redeploy đúng deployment production hiện hữu.
+
 ## Khởi tạo lại môi trường mới
+Nếu dựng một production mới hoàn toàn, chạy `setupSystem(ownerEmail)`. Với production hiện tại không chạy lại hàm này vì database/folder đã tồn tại.
 
-1. Tạo Apps Script project mới trong tài khoản sở hữu hệ thống.
-2. Dùng `clasp` hoặc copy source trong thư mục `apps-script/` lên project.
-3. Trong Apps Script editor chạy:
+## Báo cáo tuần và intelligence
+Báo cáo tuần được tổng hợp từ dữ liệu vận hành. `AI_FEED` là lớp dữ liệu chuẩn hóa cho Bản tin điều hành, không yêu cầu AI đọc raw database.
 
-```javascript
-setupSystem('hrmanager.kiro@gmail.com')
-```
-
-Hàm này tự tạo:
-- folder `SUNBOT OPS`;
-- `SUNBOT_OPS_DATABASE`;
-- toàn bộ sheet schema;
-- vai trò và quyền;
-- user CEO/Admin đầu tiên;
-- trigger tạo draft báo cáo vào thứ Bảy 08:00.
-
-> Với production hiện tại, database đã được tạo sẵn nên không chạy lại `setupSystem()` trừ khi dựng một môi trường mới.
-
-## Google Login
-Tạo OAuth 2.0 Client ID loại **Web application** trong Google Cloud project dùng cho Apps Script.
-Sau đó chạy:
-
-```javascript
-configureSecrets('GOOGLE_CLIENT_ID.apps.googleusercontent.com', 'mot-token-dai-ngau-nhien')
-```
-
-Web App nên deploy:
-- Execute as: **Me / user deploying**
-- Who has access: **Anyone** hoặc phạm vi phù hợp
-
-Ứng dụng vẫn an toàn vì mỗi API call đều bắt buộc gửi Google ID token và backend kiểm tra email trong `NHAN_SU`.
-
-## Thêm giáo viên lên làm sale
-Không tạo user mới.
-Trong màn Admin, user giữ nguyên ID; thêm role `MARKET` bên cạnh `TEACHER`.
-Lịch sử giáo viên cũ không mất.
-
-## Intelligence endpoint
-
-```text
-<WEB_APP_URL>?action=intelligence&token=<INTELLIGENCE_TOKEN>&hours=24
-```
-
-Output chỉ gồm tín hiệu đã chuẩn hóa cho CEO briefing, không trả raw database.
-
-## Backup
-- Sheet/database nằm trong Drive và có version history.
-- Folder `99_BACKUP` dành cho snapshot định kỳ sau này.
-- Source code luôn nằm trên GitHub.
+## Backup và bảo mật
+- Source code: GitHub.
+- Operational data: Google Sheets/Drive.
+- Sheet có version history; `99_BACKUP` dành cho snapshot.
+- Không commit refresh token, OTP, session secret, Intelligence token hoặc dữ liệu cá nhân vào repository.
 
 ## Chuyển ownership trong tương lai
-Nếu Kiro/Sunbot chuyển sang Google Workspace/Shared Drive, có thể chuyển tài sản sang Shared Drive mà không đổi business logic hay schema.
+Nếu Kiro/Sunbot chuyển sang Google Workspace/Shared Drive, giữ nguyên schema và business logic; chỉ thay ownership/storage adapter khi cần.
