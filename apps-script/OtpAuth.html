@@ -40,7 +40,7 @@
       <div style="display:grid;gap:10px;width:min(340px,100%);margin:0 auto;text-align:left">
         <label style="font-size:13px;font-weight:600">Email đã được cấp quyền</label>
         <input id="loginEmail" class="input" type="email" autocomplete="email" placeholder="ten@...">
-        <button class="btn" onclick="requestLoginCode()">Gửi mã đăng nhập</button>
+        <button id="sendOtpBtn" class="btn" onclick="requestLoginCode()">Gửi mã đăng nhập</button>
         <div id="otpStep" class="hidden" style="display:grid;gap:10px">
           <label style="font-size:13px;font-weight:600">Mã 6 chữ số</label>
           <input id="loginOtp" class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
@@ -55,15 +55,26 @@
   window.requestLoginCode=function(){
     const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
     if(!email){toast('Hãy nhập email.');return;}
+    const btn=document.getElementById('sendOtpBtn');
+    if(btn){btn.disabled=true;btn.textContent='Đang gửi...';}
+    const msg=document.getElementById('loginMsg');
+    if(msg)msg.textContent='Đang kiểm tra tài khoản và gửi mã...';
     setLoading(true);
     google.script.run
       .withSuccessHandler(r=>{
         setLoading(false);
+        if(btn){btn.disabled=false;btn.textContent='Gửi lại mã';}
         const step=document.getElementById('otpStep');if(step)step.classList.remove('hidden');
-        const msg=document.getElementById('loginMsg');if(msg)msg.textContent=r.message||'Đã gửi mã nếu email được cấp quyền.';
+        if(msg)msg.textContent=r.message||'Đã gửi mã nếu email được cấp quyền.';
         const otp=document.getElementById('loginOtp');if(otp)otp.focus();
       })
-      .withFailureHandler(showError)
+      .withFailureHandler(err=>{
+        setLoading(false);
+        if(btn){btn.disabled=false;btn.textContent='Gửi mã đăng nhập';}
+        const text=(err&&err.message)||String(err||'Không gửi được mã đăng nhập.');
+        if(msg)msg.textContent=text;
+        showError(err);
+      })
       .requestOtp(email);
   };
 
@@ -79,7 +90,7 @@
         localStorage.setItem(STORAGE_KEY,ID_TOKEN);
         callApi('bootstrap',{},data=>{BOOT=data;startApp();});
       })
-      .withFailureHandler(showError)
+      .withFailureHandler(err=>{setLoading(false);showError(err);})
       .verifyOtp(email,code);
   };
 
