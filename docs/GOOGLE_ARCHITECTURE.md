@@ -33,14 +33,25 @@ Frontend nằm trong `Index.html`, `Styles.html`, `Scripts.html`.
 Backend nằm trong `Code.gs` và không cho frontend thao tác Sheet trực tiếp.
 Mọi thao tác đi qua hàm `api(idToken, action, payload)`.
 
-## Khởi tạo lần đầu
+## Production owner hiện tại
+Tài khoản Google sở hữu hệ thống: `hrmanager.kiro@gmail.com`.
+
+Drive production hiện đã có:
+- folder `SUNBOT OPS`;
+- thư mục hệ thống và các thư mục nghiệp vụ;
+- Google Sheet `SUNBOT_OPS_DATABASE`;
+- schema V1 gồm NHAN_SU, VAI_TRO, NHAN_SU_VAI_TRO, QUYEN_VAI_TRO, TRUONG, CO_HOI, CONG_VIEC, CAP_NHAT, VAN_DE, CONG_NO, BAO_CAO_TUAN, AI_FEED, AUDIT_LOG;
+- user khởi tạo `hrmanager.kiro@gmail.com` với role ADMIN + CEO;
+- các role và permission cơ bản.
+
+## Khởi tạo lại môi trường mới
 
 1. Tạo Apps Script project mới trong tài khoản sở hữu hệ thống.
 2. Dùng `clasp` hoặc copy source trong thư mục `apps-script/` lên project.
 3. Trong Apps Script editor chạy:
 
 ```javascript
-setupSystem('tuongvan1906@gmail.com')
+setupSystem('hrmanager.kiro@gmail.com')
 ```
 
 Hàm này tự tạo:
@@ -50,6 +61,8 @@ Hàm này tự tạo:
 - vai trò và quyền;
 - user CEO/Admin đầu tiên;
 - trigger tạo draft báo cáo vào thứ Bảy 08:00.
+
+> Với production hiện tại, database đã được tạo sẵn nên không chạy lại `setupSystem()` trừ khi dựng một môi trường mới.
 
 ## Google Login
 Tạo OAuth 2.0 Client ID loại **Web application** trong Google Cloud project dùng cho Apps Script.
@@ -83,5 +96,5 @@ Output chỉ gồm tín hiệu đã chuẩn hóa cho CEO briefing, không trả 
 - Folder `99_BACKUP` dành cho snapshot định kỳ sau này.
 - Source code luôn nằm trên GitHub.
 
-## Tài khoản sở hữu
-Production nên được tạo dưới `tuongvan1906@gmail.com` theo quyết định hiện tại. Nếu sau này Kiro/Sunbot chuyển sang Google Workspace, có thể chuyển tài sản sang Shared Drive mà không đổi business logic.
+## Chuyển ownership trong tương lai
+Nếu Kiro/Sunbot chuyển sang Google Workspace/Shared Drive, có thể chuyển tài sản sang Shared Drive mà không đổi business logic hay schema.
