@@ -46,6 +46,10 @@ function loginAdminPassword(username, password) {
     throw new Error('Tài khoản quản trị production chưa ở trạng thái hoạt động.');
   }
 
+  // Chỉ seed khi hệ thống chưa có bất kỳ công việc vận hành nào.
+  // Không tạo dữ liệu trường/công nợ giả và không tạo trùng ở các lần đăng nhập sau.
+  ensureInitialOperationalData_(String(person.user_id));
+
   const token = createSessionToken_(person);
   logPasswordAuth_('ADMIN_PASSWORD_LOGIN_SUCCESS', {userId: person.user_id});
   return {ok:true, token:token, expiresIn:AUTH.SESSION_TTL_SECONDS};
