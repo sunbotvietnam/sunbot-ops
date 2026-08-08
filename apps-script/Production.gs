@@ -32,6 +32,26 @@ function connectExistingProduction() {
   };
 }
 
+/**
+ * Chạy một lần trong Apps Script IDE dưới tài khoản owner production.
+ * Hàm này ép Google hiện consent screen nếu project còn thiếu quyền gửi mail OTP.
+ */
+function authorizeProduction() {
+  ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, [
+    'https://www.googleapis.com/auth/script.send_mail'
+  ]);
+
+  const remainingQuota = MailApp.getRemainingDailyQuota();
+  return {
+    ok: remainingQuota > 0,
+    ownerEmail: PRODUCTION.OWNER_EMAIL,
+    mailQuotaRemaining: remainingQuota,
+    message: remainingQuota > 0
+      ? 'Đã cấp quyền gửi email cho SUNBOT OPS production.'
+      : 'Đã có quyền MailApp nhưng quota gửi mail hôm nay đã hết.'
+  };
+}
+
 /** Health check production sau khi deploy/push source. */
 function productionHealthCheck() {
   const props = PropertiesService.getScriptProperties();
