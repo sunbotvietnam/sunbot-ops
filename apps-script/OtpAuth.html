@@ -9,7 +9,7 @@
       callApi('bootstrap',{},data=>{BOOT=data;startApp();},true);
       return;
     }
-    renderOtpLogin();
+    renderPasswordLogin();
   };
 
   window.callApi=function(action,payload,onOk,silentAuthFailure){
@@ -24,7 +24,7 @@
           ID_TOKEN='';BOOT=null;
           document.getElementById('appView').classList.add('hidden');
           document.getElementById('loginView').classList.remove('hidden');
-          renderOtpLogin();
+          renderPasswordLogin();
           if(!silentAuthFailure) showError(err);
           return;
         }
@@ -33,65 +33,45 @@
       .apiSession(ID_TOKEN,action,payload||{});
   };
 
-  window.renderOtpLogin=function(){
+  window.renderPasswordLogin=function(){
     const host=document.getElementById('googleSignIn');
     if(!host)return;
     host.innerHTML=`
       <div style="display:grid;gap:10px;width:min(340px,100%);margin:0 auto;text-align:left">
-        <label style="font-size:13px;font-weight:600">Email đã được cấp quyền</label>
-        <input id="loginEmail" class="input" type="email" autocomplete="email" placeholder="ten@...">
-        <button id="sendOtpBtn" class="btn" onclick="requestLoginCode()">Gửi mã đăng nhập</button>
-        <div id="otpStep" class="hidden" style="display:grid;gap:10px">
-          <label style="font-size:13px;font-weight:600">Mã 6 chữ số</label>
-          <input id="loginOtp" class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
-          <button class="btn secondary" onclick="verifyLoginCode()">Đăng nhập</button>
-        </div>
+        <label style="font-size:13px;font-weight:600">Tên đăng nhập</label>
+        <input id="adminUsername" class="input" type="text" autocomplete="username" value="admin">
+        <label style="font-size:13px;font-weight:600">Mật khẩu</label>
+        <input id="adminPassword" class="input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+        <button id="adminLoginBtn" class="btn" onclick="loginAdminPasswordUi()">Đăng nhập</button>
       </div>`;
     const msg=document.getElementById('loginMsg');
-    if(msg)msg.textContent='Chỉ email đã có trong danh sách nhân sự SUNBOT OPS mới nhận được mã.';
-    setTimeout(()=>{const e=document.getElementById('loginEmail');if(e)e.focus();},50);
+    if(msg)msg.textContent='Đăng nhập quản trị SUNBOT OPS.';
+    setTimeout(()=>{const e=document.getElementById('adminPassword');if(e)e.focus();},50);
   };
 
-  window.requestLoginCode=function(){
-    const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
-    if(!email){toast('Hãy nhập email.');return;}
-    const btn=document.getElementById('sendOtpBtn');
-    if(btn){btn.disabled=true;btn.textContent='Đang gửi...';}
-    const msg=document.getElementById('loginMsg');
-    if(msg)msg.textContent='Đang kiểm tra tài khoản và gửi mã...';
+  window.loginAdminPasswordUi=function(){
+    const username=(document.getElementById('adminUsername')?.value||'').trim();
+    const password=(document.getElementById('adminPassword')?.value||'');
+    if(!username||!password){toast('Hãy nhập tên đăng nhập và mật khẩu.');return;}
+    const btn=document.getElementById('adminLoginBtn');
+    if(btn){btn.disabled=true;btn.textContent='Đang đăng nhập...';}
     setLoading(true);
     google.script.run
       .withSuccessHandler(r=>{
         setLoading(false);
-        if(btn){btn.disabled=false;btn.textContent='Gửi lại mã';}
-        const step=document.getElementById('otpStep');if(step)step.classList.remove('hidden');
-        if(msg)msg.textContent=r.message||'Đã gửi mã nếu email được cấp quyền.';
-        const otp=document.getElementById('loginOtp');if(otp)otp.focus();
-      })
-      .withFailureHandler(err=>{
-        setLoading(false);
-        if(btn){btn.disabled=false;btn.textContent='Gửi mã đăng nhập';}
-        const text=(err&&err.message)||String(err||'Không gửi được mã đăng nhập.');
-        if(msg)msg.textContent=text;
-        showError(err);
-      })
-      .requestOtp(email);
-  };
-
-  window.verifyLoginCode=function(){
-    const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
-    const code=(document.getElementById('loginOtp')?.value||'').trim();
-    if(!email||!/^\d{6}$/.test(code)){toast('Hãy nhập email và mã 6 chữ số.');return;}
-    setLoading(true);
-    google.script.run
-      .withSuccessHandler(r=>{
-        setLoading(false);
+        if(btn){btn.disabled=false;btn.textContent='Đăng nhập';}
         ID_TOKEN=r.token;
         localStorage.setItem(STORAGE_KEY,ID_TOKEN);
         callApi('bootstrap',{},data=>{BOOT=data;startApp();});
       })
-      .withFailureHandler(err=>{setLoading(false);showError(err);})
-      .verifyOtp(email,code);
+      .withFailureHandler(err=>{
+        setLoading(false);
+        if(btn){btn.disabled=false;btn.textContent='Đăng nhập';}
+        const msg=document.getElementById('loginMsg');
+        if(msg)msg.textContent=(err&&err.message)||'Đăng nhập không thành công.';
+        showError(err);
+      })
+      .loginAdminPassword(username,password);
   };
 
   window.logoutSunbotOps=function(){
@@ -99,17 +79,16 @@
     ID_TOKEN='';BOOT=null;HOME=null;CURRENT_WEEKLY=null;
     document.getElementById('appView').classList.add('hidden');
     document.getElementById('loginView').classList.remove('hidden');
-    renderOtpLogin();
+    renderPasswordLogin();
     toast('Đã đăng xuất.');
   };
 
-  // OTP là auth mode chính của V1. Khởi tạo độc lập với Google Client ID/getPublicConfig.
   document.addEventListener('DOMContentLoaded',()=>{
     try{ window.initGoogle({}); }
     catch(err){
       const msg=document.getElementById('loginMsg');
       if(msg) msg.textContent='Không khởi tạo được màn đăng nhập. Hãy tải lại trang.';
-      console.error('SUNBOT OPS OTP init failed',err);
+      console.error('SUNBOT OPS password auth init failed',err);
     }
   });
 })();
