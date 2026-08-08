@@ -1,7 +1,14 @@
 const OTP_PRODUCTION_URL = 'https://script.google.com/macros/s/AKfycbw32BGSXwFVOpRCknx5hn8-k2m5ZXox26_y2mnZKVWL0JKHCv_Qtly5JiY0FS9e87kU/exec';
 
 function doPost(e) {
-  const action = String((e && e.parameter && e.parameter.action) || '').trim();
+  const json = parseJsonPost_(e);
+  const action = String((json && json.action) || (e && e.parameter && e.parameter.action) || '').trim();
+
+  if (action === 'hubPermissions') {
+    const token = String((json && json.token) || (e && e.parameter && e.parameter.token) || '').trim();
+    return hubPermissionsResponse_(token);
+  }
+
   if (action === 'adminPasswordLogin') {
     const username = String((e && e.parameter && e.parameter.username) || '').trim();
     const password = String((e && e.parameter && e.parameter.password) || '');
@@ -22,6 +29,16 @@ function doPost(e) {
     }
   }
   return passwordLoginErrorPage_('Tác vụ không hợp lệ.');
+}
+
+function parseJsonPost_(e) {
+  try {
+    const raw = e && e.postData && e.postData.contents;
+    if (!raw || String(raw).trim().charAt(0) !== '{') return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
 }
 
 function passwordLoginErrorPage_(message) {
