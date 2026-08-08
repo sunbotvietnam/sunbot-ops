@@ -91,5 +91,15 @@
     renderOtpLogin();
     toast('Đã đăng xuất.');
   };
+
+  // OTP là auth mode chính của V1. Khởi tạo độc lập với Google Client ID/getPublicConfig.
+  document.addEventListener('DOMContentLoaded',()=>{
+    try{ window.initGoogle({}); }
+    catch(err){
+      const msg=document.getElementById('loginMsg');
+      if(msg) msg.textContent='Không khởi tạo được màn đăng nhập. Hãy tải lại trang.';
+      console.error('SUNBOT OPS OTP init failed',err);
+    }
+  });
 })();
 </script>
