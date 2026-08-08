@@ -12,75 +12,46 @@ const PASSWORD_AUTH = Object.freeze({
   LOCK_SECONDS: 15 * 60
 });
 
-function loginAdminPassword(username, password) {
-  return loginPassword_(username, password);
-}
+function loginAdminPassword(username, password) { return loginPassword_(username, password); }
 
 function loginPassword_(username, password) {
   ensureProductionProperties_();
-
   const cache = CacheService.getScriptCache();
   const rawUser = String(username || '').trim();
   const normalizedUser = rawUser.toUpperCase();
   const pass = String(password || '');
   const lockKey = 'PASSWORD_LOGIN_LOCK:' + normalizedUser;
   const failKey = 'PASSWORD_LOGIN_FAILS:' + normalizedUser;
-
-  if (cache.get(lockKey)) {
-    throw new Error('Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.');
-  }
+  if (cache.get(lockKey)) throw new Error('Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.');
 
   let person = null;
   let valid = false;
-
   if (rawUser.toLowerCase() === PASSWORD_AUTH.ADMIN_USERNAME) {
-    valid = timingSafeEqual_(
-      sha256Hex_(PASSWORD_AUTH.ADMIN_SALT + pass),
-      PASSWORD_AUTH.ADMIN_PASSWORD_SHA256
-    );
-    if (valid) {
-      const ownerEmail = String(PRODUCTION.OWNER_EMAIL || '').trim().toLowerCase();
-      person = findOne_(APP.SHEETS.PEOPLE, 'email', ownerEmail);
-    }
+    valid = timingSafeEqual_(sha256Hex_(PASSWORD_AUTH.ADMIN_SALT + pass), PASSWORD_AUTH.ADMIN_PASSWORD_SHA256);
+    if (valid) person = findOne_(APP.SHEETS.PEOPLE, 'email', String(PRODUCTION.OWNER_EMAIL || '').trim().toLowerCase());
   } else {
     const expectedHash = PASSWORD_AUTH.STAFF_PIN_SHA256[normalizedUser] || '';
-    valid = !!expectedHash && timingSafeEqual_(
-      sha256Hex_(PASSWORD_AUTH.STAFF_SALT + pass),
-      expectedHash
-    );
+    valid = !!expectedHash && timingSafeEqual_(sha256Hex_(PASSWORD_AUTH.STAFF_SALT + pass), expectedHash);
     if (valid) person = findOne_(APP.SHEETS.PEOPLE, 'user_id', normalizedUser);
   }
 
   if (!valid || !person || !isActiveStatus_(person.trang_thai)) {
     const failures = Number(cache.get(failKey) || 0) + 1;
-    if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) {
-      cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS);
-      cache.remove(failKey);
-    } else {
-      cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
-    }
+    if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) { cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS); cache.remove(failKey); }
+    else cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
     logPasswordAuth_('PASSWORD_LOGIN_FAILED', normalizedUser || rawUser, {attempts: failures});
     throw new Error('ID đăng nhập hoặc mật khẩu/PIN không đúng.');
   }
 
-  cache.remove(failKey);
-  cache.remove(lockKey);
-
-  if (String(person.user_id) === 'USR-TUONGVAN1906') {
-    ensureInitialOperationalData_(String(person.user_id));
-  }
-
+  cache.remove(failKey); cache.remove(lockKey);
+  if (String(person.user_id) === 'USR-TUONGVAN1906') ensureInitialOperationalData_(String(person.user_id));
   const token = createSessionToken_(person);
   logPasswordAuth_('PASSWORD_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id});
-  return {ok:true, token:token, expiresIn:AUTH.SESSION_TTL_SECONDS};
+  return {ok:true, token:token, userId:String(person.user_id), expiresIn:AUTH.SESSION_TTL_SECONDS};
 }
 
 function sha256Hex_(text) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8)
-    .map(function(b){
-      const n = b < 0 ? b + 256 : b;
-      return ('0' + n.toString(16)).slice(-2);
-    }).join('');
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8).map(function(b){ const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2); }).join('');
 }
 
 function logPasswordAuth_(action, entityId, detail) {
@@ -88,14 +59,6 @@ function logPasswordAuth_(action, entityId, detail) {
     ensureProductionProperties_();
     const sh = getDb_().getSheetByName(APP.SHEETS.AUDIT || 'AUDIT_LOG');
     if (!sh) return;
-    sh.appendRow([
-      'AUD-' + Utilities.getUuid(),
-      now_(),
-      entityId || '',
-      action,
-      'AUTH_PASSWORD',
-      entityId || '',
-      JSON.stringify(detail || {})
-    ]);
+    sh.appendRow(['AUD-' + Utilities.getUuid(), now_(), entityId || '', action, 'AUTH_PASSWORD', entityId || '', JSON.stringify(detail || {})]);
   } catch (ignored) {}
 }
