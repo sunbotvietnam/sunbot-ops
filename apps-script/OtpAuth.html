@@ -1,0 +1,95 @@
+<script>
+(function(){
+  const STORAGE_KEY='sunbot_ops_session';
+
+  window.initGoogle=function(){
+    const saved=localStorage.getItem(STORAGE_KEY)||'';
+    if(saved){
+      ID_TOKEN=saved;
+      callApi('bootstrap',{},data=>{BOOT=data;startApp();},true);
+      return;
+    }
+    renderOtpLogin();
+  };
+
+  window.callApi=function(action,payload,onOk,silentAuthFailure){
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(r=>{setLoading(false);onOk&&onOk(r);})
+      .withFailureHandler(err=>{
+        setLoading(false);
+        const msg=(err&&err.message)||String(err||'Có lỗi xảy ra.');
+        if(/phiên đăng nhập|đăng nhập lại|không còn được cấp quyền/i.test(msg)){
+          localStorage.removeItem(STORAGE_KEY);
+          ID_TOKEN='';BOOT=null;
+          document.getElementById('appView').classList.add('hidden');
+          document.getElementById('loginView').classList.remove('hidden');
+          renderOtpLogin();
+          if(!silentAuthFailure) showError(err);
+          return;
+        }
+        showError(err);
+      })
+      .apiSession(ID_TOKEN,action,payload||{});
+  };
+
+  window.renderOtpLogin=function(){
+    const host=document.getElementById('googleSignIn');
+    if(!host)return;
+    host.innerHTML=`
+      <div style="display:grid;gap:10px;width:min(340px,100%);margin:0 auto;text-align:left">
+        <label style="font-size:13px;font-weight:600">Email đã được cấp quyền</label>
+        <input id="loginEmail" class="input" type="email" autocomplete="email" placeholder="ten@...">
+        <button class="btn" onclick="requestLoginCode()">Gửi mã đăng nhập</button>
+        <div id="otpStep" class="hidden" style="display:grid;gap:10px">
+          <label style="font-size:13px;font-weight:600">Mã 6 chữ số</label>
+          <input id="loginOtp" class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+          <button class="btn secondary" onclick="verifyLoginCode()">Đăng nhập</button>
+        </div>
+      </div>`;
+    const msg=document.getElementById('loginMsg');
+    if(msg)msg.textContent='Chỉ email đã có trong danh sách nhân sự SUNBOT OPS mới nhận được mã.';
+    setTimeout(()=>{const e=document.getElementById('loginEmail');if(e)e.focus();},50);
+  };
+
+  window.requestLoginCode=function(){
+    const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
+    if(!email){toast('Hãy nhập email.');return;}
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(r=>{
+        setLoading(false);
+        const step=document.getElementById('otpStep');if(step)step.classList.remove('hidden');
+        const msg=document.getElementById('loginMsg');if(msg)msg.textContent=r.message||'Đã gửi mã nếu email được cấp quyền.';
+        const otp=document.getElementById('loginOtp');if(otp)otp.focus();
+      })
+      .withFailureHandler(showError)
+      .requestOtp(email);
+  };
+
+  window.verifyLoginCode=function(){
+    const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
+    const code=(document.getElementById('loginOtp')?.value||'').trim();
+    if(!email||!/^\d{6}$/.test(code)){toast('Hãy nhập email và mã 6 chữ số.');return;}
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(r=>{
+        setLoading(false);
+        ID_TOKEN=r.token;
+        localStorage.setItem(STORAGE_KEY,ID_TOKEN);
+        callApi('bootstrap',{},data=>{BOOT=data;startApp();});
+      })
+      .withFailureHandler(showError)
+      .verifyOtp(email,code);
+  };
+
+  window.logoutSunbotOps=function(){
+    localStorage.removeItem(STORAGE_KEY);
+    ID_TOKEN='';BOOT=null;HOME=null;CURRENT_WEEKLY=null;
+    document.getElementById('appView').classList.add('hidden');
+    document.getElementById('loginView').classList.remove('hidden');
+    renderOtpLogin();
+    toast('Đã đăng xuất.');
+  };
+})();
+</script>
