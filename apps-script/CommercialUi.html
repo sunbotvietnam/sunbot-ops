@@ -4,7 +4,7 @@
     setLoading(true);
     google.script.run
       .withSuccessHandler(r=>{setLoading(false);onOk&&onOk(r);})
-      .withFailureHandler(showError)
+      .withFailureHandler(err=>{setLoading(false);showError(err);})
       .apiSessionCommercial(ID_TOKEN,action,payload||{});
   }
 
