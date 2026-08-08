@@ -54,6 +54,7 @@
 
   <div id="toast"></div>
   <div id="loading" class="loading hidden"><div class="spinner"></div><b>Đang xử lý...</b></div>
+  <script>window.__SUNBOT_INITIAL_SESSION__ = <?!= JSON.stringify(typeof initialSessionToken !== 'undefined' ? initialSessionToken : '') ?>;</script>
   <?!= include('Scripts'); ?>
   <?!= include('OtpAuth'); ?>
   <?!= include('OtpTransport'); ?>
