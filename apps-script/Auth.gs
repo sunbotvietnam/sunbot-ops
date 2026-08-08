@@ -12,13 +12,36 @@ function requestOtp(email) {
 
   // Trả thông điệp giống nhau để tránh dò danh sách tài khoản nội bộ.
   const generic = {ok:true, message:'Nếu email đã được cấp quyền, mã đăng nhập sẽ được gửi trong ít phút.'};
-  if (!person || String(person.trang_thai).toUpperCase() !== 'ACTIVE') return generic;
+
+  if (!person) {
+    logOtpDiagnostic_(normalized, '', 'OTP_ACCOUNT_NOT_FOUND', {stage:'account_lookup'});
+    return generic;
+  }
+  if (!isActiveStatus_(person.trang_thai)) {
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_ACCOUNT_INACTIVE', {stage:'account_status', status:String(person.trang_thai || '')});
+    return generic;
+  }
 
   const cache = CacheService.getScriptCache();
   const throttleKey = 'OTP_THROTTLE:' + normalized;
-  if (cache.get(throttleKey)) return generic;
+  if (cache.get(throttleKey)) {
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_THROTTLED', {stage:'throttle'});
+    return generic;
+  }
 
-  if (MailApp.getRemainingDailyQuota() < 1) throw new Error('Hệ thống tạm hết hạn mức gửi mã đăng nhập trong ngày. Vui lòng liên hệ quản trị.');
+  let remainingQuota;
+  try {
+    remainingQuota = MailApp.getRemainingDailyQuota();
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_MAIL_PREFLIGHT_OK', {stage:'quota', remainingQuota:remainingQuota});
+  } catch (err) {
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_MAIL_PREFLIGHT_ERROR', {stage:'quota', error:safeErrorMessage_(err)});
+    throw new Error('SUNBOT OPS chưa được cấp quyền gửi email OTP. Quản trị cần cấp quyền MailApp cho Apps Script production.');
+  }
+
+  if (remainingQuota < 1) {
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_MAIL_QUOTA_EMPTY', {stage:'quota', remainingQuota:remainingQuota});
+    throw new Error('Hệ thống tạm hết hạn mức gửi mã đăng nhập trong ngày. Vui lòng liên hệ quản trị.');
+  }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const record = {
@@ -27,16 +50,24 @@ function requestOtp(email) {
     issuedAt: Date.now()
   };
   cache.put('OTP:' + normalized, JSON.stringify(record), AUTH.OTP_TTL_SECONDS);
-  cache.put(throttleKey, '1', AUTH.OTP_RESEND_SECONDS);
 
-  MailApp.sendEmail({
-    to: normalized,
-    subject: 'Mã đăng nhập SUNBOT OPS',
-    body: 'Mã đăng nhập SUNBOT OPS của bạn là: ' + code + '\n\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu mã này, hãy bỏ qua email.',
-    htmlBody: '<div style="font-family:Arial,sans-serif;max-width:520px"><h2>SUNBOT OPS</h2><p>Mã đăng nhập của bạn:</p><div style="font-size:32px;font-weight:700;letter-spacing:6px;margin:18px 0">' + code + '</div><p>Mã có hiệu lực trong 10 phút.</p><p style="color:#666;font-size:12px">Nếu bạn không yêu cầu mã này, hãy bỏ qua email.</p></div>',
-    name: 'SUNBOT OPS'
-  });
-  return generic;
+  try {
+    MailApp.sendEmail({
+      to: normalized,
+      subject: 'Mã đăng nhập SUNBOT OPS',
+      body: 'Mã đăng nhập SUNBOT OPS của bạn là: ' + code + '\n\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu mã này, hãy bỏ qua email.',
+      htmlBody: '<div style="font-family:Arial,sans-serif;max-width:520px"><h2>SUNBOT OPS</h2><p>Mã đăng nhập của bạn:</p><div style="font-size:32px;font-weight:700;letter-spacing:6px;margin:18px 0">' + code + '</div><p>Mã có hiệu lực trong 10 phút.</p><p style="color:#666;font-size:12px">Nếu bạn không yêu cầu mã này, hãy bỏ qua email.</p></div>',
+      name: 'SUNBOT OPS'
+    });
+    cache.put(throttleKey, '1', AUTH.OTP_RESEND_SECONDS);
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_MAIL_SENT', {stage:'send', remainingQuotaBefore:remainingQuota});
+  } catch (err) {
+    cache.remove('OTP:' + normalized);
+    logOtpDiagnostic_(normalized, person.user_id, 'OTP_MAIL_SEND_ERROR', {stage:'send', error:safeErrorMessage_(err)});
+    throw new Error('Không gửi được email OTP: ' + safeErrorMessage_(err));
+  }
+
+  return {ok:true, message:'Đã gửi mã đăng nhập. Hãy kiểm tra Inbox và Spam.'};
 }
 
 function verifyOtp(email, code) {
@@ -45,7 +76,7 @@ function verifyOtp(email, code) {
   if (!/^\d{6}$/.test(entered)) throw new Error('Mã đăng nhập phải gồm 6 chữ số.');
 
   const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalized);
-  if (!person || String(person.trang_thai).toUpperCase() !== 'ACTIVE') throw new Error('Mã đăng nhập không hợp lệ hoặc đã hết hạn.');
+  if (!person || !isActiveStatus_(person.trang_thai)) throw new Error('Mã đăng nhập không hợp lệ hoặc đã hết hạn.');
 
   const cache = CacheService.getScriptCache();
   const key = 'OTP:' + normalized;
@@ -68,6 +99,7 @@ function verifyOtp(email, code) {
 
   cache.remove(key);
   const token = createSessionToken_(person);
+  logOtpDiagnostic_(normalized, person.user_id, 'OTP_LOGIN_SUCCESS', {stage:'verify'});
   return {ok:true, token:token, expiresIn:AUTH.SESSION_TTL_SECONDS};
 }
 
@@ -108,7 +140,7 @@ function authenticateSession_(token) {
   if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
 
   const row = findOne_(APP.SHEETS.PEOPLE, 'email', String(payload.email || '').toLowerCase());
-  if (!row || String(row.trang_thai).toUpperCase() !== 'ACTIVE' || String(row.user_id) !== String(payload.uid)) throw new Error('Tài khoản không còn được cấp quyền SUNBOT OPS.');
+  if (!row || !isActiveStatus_(row.trang_thai) || String(row.user_id) !== String(payload.uid)) throw new Error('Tài khoản không còn được cấp quyền SUNBOT OPS.');
 
   const roles = activeRolesForUser_(row.user_id);
   const permissions = permissionsForRoles_(roles);
@@ -162,4 +194,33 @@ function normalizeEmail_(email) {
   const value = String(email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new Error('Email không hợp lệ.');
   return value;
+}
+
+function isActiveStatus_(status) {
+  const raw = String(status || '').trim().toUpperCase();
+  if (raw === 'ACTIVE' || raw === 'ĐANG HOẠT ĐỘNG') return true;
+  const ascii = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Đ/g, 'D');
+  return ascii === 'DANG HOAT DONG';
+}
+
+function safeErrorMessage_(err) {
+  const text = err && err.message ? err.message : String(err || 'Unknown error');
+  return text.slice(0, 500);
+}
+
+function logOtpDiagnostic_(email, userId, action, detail) {
+  try {
+    const ss = getDb_();
+    const sh = ss.getSheetByName(APP.SHEETS.AUDIT || 'AUDIT_LOG');
+    if (!sh) return;
+    sh.appendRow([
+      'AUD-' + Utilities.getUuid(),
+      now_(),
+      userId || '',
+      action,
+      'AUTH_OTP',
+      email || '',
+      JSON.stringify(detail || {})
+    ]);
+  } catch (ignored) {}
 }
