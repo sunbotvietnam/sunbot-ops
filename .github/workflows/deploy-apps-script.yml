@@ -1,0 +1,40 @@
+name: Deploy Apps Script production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps-script/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure clasp credentials
+        shell: bash
+        run: |
+          mkdir -p "$HOME"
+          printf '%s' '${{ secrets.CLASPRC_JSON }}' > "$HOME/.clasprc.json"
+          printf '%s' '${{ secrets.CLASP_JSON }}' > .clasp.json
+
+      - name: Validate credentials exist
+        shell: bash
+        run: |
+          test -s "$HOME/.clasprc.json"
+          test -s .clasp.json
+
+      - name: Push Apps Script source
+        run: npx --yes @google/clasp@latest push --force
+
+      - name: Create immutable version
+        run: npx --yes @google/clasp@latest version "GitHub $GITHUB_SHA"
