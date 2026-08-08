@@ -5,6 +5,7 @@ const required = [
   'apps-script/appsscript.json',
   'apps-script/Code.gs',
   'apps-script/Auth.gs',
+  'apps-script/PasswordAuth.gs',
   'apps-script/Production.gs',
   'apps-script/Index.html',
   'apps-script/Styles.html',
@@ -42,13 +43,22 @@ for (const token of ['setupSystem','triggerWeeklyDrafts','getIntelligenceHttp_']
 }
 
 const auth = fs.readFileSync('apps-script/Auth.gs','utf8');
-for (const token of ['function requestOtp(','function verifyOtp(','function apiSession(','computeHmacSha256Signature','MailApp.sendEmail']) {
-  if (!auth.includes(token)) { console.error('Auth OTP thiếu chức năng:', token); failed = true; }
+for (const token of ['function apiSession(','computeHmacSha256Signature','function createSessionToken_(']) {
+  if (!auth.includes(token)) { console.error('Session auth thiếu chức năng:', token); failed = true; }
 }
 
-const otpUi = fs.readFileSync('apps-script/OtpAuth.html','utf8');
-for (const token of ['requestLoginCode','verifyLoginCode','apiSession','localStorage']) {
-  if (!otpUi.includes(token)) { console.error('Frontend OTP thiếu chức năng:', token); failed = true; }
+const passwordAuth = fs.readFileSync('apps-script/PasswordAuth.gs','utf8');
+for (const token of ['function loginAdminPassword(','ADMIN_PASSWORD_SHA256','MAX_ATTEMPTS','LOCK_SECONDS']) {
+  if (!passwordAuth.includes(token)) { console.error('Password auth thiếu chức năng:', token); failed = true; }
+}
+if (passwordAuth.includes("ADMIN_PASSWORD: '6868'") || passwordAuth.includes('ADMIN_PASSWORD = "6868"')) {
+  console.error('Không được lưu PIN quản trị dạng rõ trong source.');
+  failed = true;
+}
+
+const loginUi = fs.readFileSync('apps-script/OtpAuth.html','utf8');
+for (const token of ['loginAdminPasswordUi','loginAdminPassword','apiSession','localStorage']) {
+  if (!loginUi.includes(token)) { console.error('Frontend password login thiếu chức năng:', token); failed = true; }
 }
 
 const forbidden = ['DATABASE_URL','PrismaClient','postgresql://'];
