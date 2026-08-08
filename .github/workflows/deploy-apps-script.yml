@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
-      CLASP_JSON: ${{ secrets.CLASP_JSON }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,29 +28,26 @@ jobs:
         run: |
           mkdir -p "$HOME"
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
-          printf '%s' "$CLASP_JSON" > .clasp.json
+          cat > .clasp.json <<'EOF'
+          {"scriptId":"1JE4xE4CDjOpsvId65hUdXAVbTr1CkcB7gHharVk0ibwUJIRKLQ1cDWwO","rootDir":"apps-script"}
+          EOF
           test -s "$HOME/.clasprc.json" || { echo 'CLASPRC_JSON is empty'; exit 1; }
-          test -s .clasp.json || { echo 'CLASP_JSON is empty'; exit 1; }
+          jq -e . .clasp.json >/dev/null || { echo '.clasp.json generated invalid'; exit 1; }
 
-      - name: Repair JSON syntax if needed
+      - name: Repair credential JSON syntax if needed
         shell: bash
         run: |
           if ! jq -e . "$HOME/.clasprc.json" >/dev/null 2>&1; then
             echo 'Repairing CLASPRC_JSON syntax locally on runner...'
             npx --yes jsonrepair "$HOME/.clasprc.json" --overwrite
           fi
-          if ! jq -e . .clasp.json >/dev/null 2>&1; then
-            echo 'Repairing CLASP_JSON syntax locally on runner...'
-            npx --yes jsonrepair .clasp.json --overwrite
-          fi
           jq -e . "$HOME/.clasprc.json" >/dev/null || { echo 'CLASPRC_JSON remains invalid after repair'; exit 1; }
-          jq -e . .clasp.json >/dev/null || { echo 'CLASP_JSON remains invalid after repair'; exit 1; }
           echo 'Credential JSON validated.'
 
       - name: Validate clasp project mapping
         shell: bash
         run: |
-          jq -e 'has("scriptId") and has("rootDir") and (.rootDir == "apps-script")' .clasp.json >/dev/null || { echo 'CLASP_JSON must contain scriptId and rootDir=apps-script'; exit 1; }
+          jq -e '(.scriptId == "1JE4xE4CDjOpsvId65hUdXAVbTr1CkcB7gHharVk0ibwUJIRKLQ1cDWwO") and (.rootDir == "apps-script")' .clasp.json >/dev/null || { echo 'Production script mapping invalid'; exit 1; }
 
       - name: Push Apps Script source
         run: npx --yes @google/clasp@latest push --force

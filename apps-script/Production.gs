@@ -1,7 +1,7 @@
 const PRODUCTION = Object.freeze({
-  OWNER_EMAIL: 'hrmanager.kiro@gmail.com',
-  DB_ID: '1H8ATStH9PMgmku5HSCqsFMEu4-LCXAvRxM7XHOY1XAo',
-  ROOT_FOLDER_ID: '1bwXPfegpoU4YlSf-R9aoN4l1TrFBm6T5'
+  OWNER_EMAIL: 'tuongvan1906@gmail.com',
+  DB_ID: '1xgXFFHKZxWQFRyExeMqcDYFGUxYzxooSBLu0xUvTi3w',
+  ROOT_FOLDER_ID: '1broBFd7biHsGrqGHyHvxjHoCsygawfUa'
 });
 
 /**
