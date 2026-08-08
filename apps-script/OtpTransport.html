@@ -2,18 +2,7 @@
 (function(){
   const OTP_ENDPOINT='https://script.google.com/macros/s/AKfycbw32BGSXwFVOpRCknx5hn8-k2m5ZXox26_y2mnZKVWL0JKHCv_Qtly5JiY0FS9e87kU/exec';
 
-  function ensureOtpTransportFrame(){
-    let frame=document.getElementById('otpTransportFrame');
-    if(frame) return frame;
-    frame=document.createElement('iframe');
-    frame.id='otpTransportFrame';
-    frame.name='otpTransportFrame';
-    frame.style.display='none';
-    document.body.appendChild(frame);
-    return frame;
-  }
-
-  window.requestLoginCode=function(){
+  window.requestLoginCode=async function(){
     const email=(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
     if(!email){toast('Hãy nhập email.');return;}
 
@@ -23,30 +12,34 @@
     if(msg)msg.textContent='Đang gửi yêu cầu mã đăng nhập...';
     setLoading(true);
 
-    ensureOtpTransportFrame();
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=OTP_ENDPOINT;
-    form.target='otpTransportFrame';
-    form.style.display='none';
+    const body=new URLSearchParams();
+    body.set('action','requestOtp');
+    body.set('email',email);
 
-    const action=document.createElement('input');
-    action.type='hidden';action.name='action';action.value='requestOtp';
-    const emailInput=document.createElement('input');
-    emailInput.type='hidden';emailInput.name='email';emailInput.value=email;
-    form.appendChild(action);form.appendChild(emailInput);
-    document.body.appendChild(form);
-    form.submit();
-    form.remove();
+    try{
+      await fetch(OTP_ENDPOINT,{
+        method:'POST',
+        mode:'no-cors',
+        credentials:'omit',
+        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+        body:body.toString(),
+        redirect:'follow',
+        cache:'no-store'
+      });
 
-    // POST chạy độc lập với google.script.run. Không chờ callback bridge đang bị treo.
-    setTimeout(()=>{
       setLoading(false);
       if(btn){btn.disabled=false;btn.textContent='Gửi lại mã';}
       const step=document.getElementById('otpStep');if(step)step.classList.remove('hidden');
-      if(msg)msg.textContent='Yêu cầu gửi mã đã được chuyển tới máy chủ. Hãy kiểm tra Inbox/Spam trong ít phút.';
+      if(msg)msg.textContent='Yêu cầu gửi mã đã tới máy chủ. Hãy kiểm tra Inbox/Spam trong ít phút.';
       const otp=document.getElementById('loginOtp');if(otp)otp.focus();
-    },1500);
+    }catch(err){
+      setLoading(false);
+      if(btn){btn.disabled=false;btn.textContent='Gửi mã đăng nhập';}
+      const text='Không gửi được yêu cầu OTP tới máy chủ. Hãy tải lại trang và thử lại.';
+      if(msg)msg.textContent=text;
+      console.error('OTP HTTP transport failed',err);
+      toast(text);
+    }
   };
 })();
 </script>
