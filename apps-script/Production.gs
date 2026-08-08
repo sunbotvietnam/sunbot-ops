@@ -4,6 +4,12 @@ const PRODUCTION = Object.freeze({
   ROOT_FOLDER_ID: '1broBFd7biHsGrqGHyHvxjHoCsygawfUa'
 });
 
+const COMMERCIAL_PRODUCTION_SCHEMA = Object.freeze({
+  THI_TRUONG_TIN_HIEU: ['signal_id','captured_at','user_id','account_id','competitor_id','offer_id','raw_signal','source_type','source_person','evidence_url','needs_verification','review_status','verified_fact','confidence','reviewed_by_user_id','reviewed_at','created_at','updated_at'],
+  DOI_THU: ['competitor_id','ten_don_vi','actor_type','dia_ban','segments','core_model','school_channel_strength','radar_priority','baseline_summary','baseline_source','last_verified_at','updated_at','created_at'],
+  CHAO_BAN_THI_TRUONG: ['offer_id','competitor_id','ten_offer','do_tuoi','components','delivery_model','price_value','price_unit','payer','equipment_model','positioning_message','evidence_url','verified_at','confidence','created_at','updated_at']
+});
+
 /**
  * Kết nối Apps Script project production hiện có với Drive/Sheet đã bootstrap.
  * Không tạo database/folder mới.
@@ -15,6 +21,8 @@ function connectExistingProduction() {
 
   const missingSheets = Object.keys(SCHEMA).filter(name => !ss.getSheetByName(name));
   if (missingSheets.length) throw new Error('Database production thiếu sheet: ' + missingSheets.join(', '));
+  const commercial = commercialProductionSchemaCheck_(ss);
+  if (!commercial.ok) throw new Error('Commercial Intelligence schema chưa hoàn chỉnh: ' + commercial.errors.join('; '));
 
   props.setProperty(APP.PROP_DB_ID, PRODUCTION.DB_ID);
   props.setProperty(APP.PROP_ROOT_FOLDER_ID, PRODUCTION.ROOT_FOLDER_ID);
@@ -24,10 +32,11 @@ function connectExistingProduction() {
 
   return {
     ok: true,
-    authMode: 'EMAIL_OTP',
+    authMode: 'SESSION',
     ownerEmail: PRODUCTION.OWNER_EMAIL,
     databaseUrl: ss.getUrl(),
     rootFolderUrl: root.getUrl(),
+    commercialSchema: commercial,
     message: 'Đã kết nối Apps Script với SUNBOT OPS production hiện có.'
   };
 }
@@ -52,6 +61,28 @@ function authorizeProduction() {
   };
 }
 
+function commercialProductionSchemaCheck_(ss) {
+  const errors = [];
+  Object.keys(COMMERCIAL_PRODUCTION_SCHEMA).forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (!sh) { errors.push('Thiếu sheet ' + name); return; }
+    const headers = sh.getLastColumn() ? sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String) : [];
+    COMMERCIAL_PRODUCTION_SCHEMA[name].forEach(h => { if (!headers.includes(h)) errors.push(name + ' thiếu cột ' + h); });
+  });
+  const headerChecks = {
+    CO_HOI: ['expected_cash_date','lost_reason'],
+    CONG_VIEC: ['opp_id'],
+    CAP_NHAT: ['opp_id']
+  };
+  Object.keys(headerChecks).forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (!sh) { errors.push('Thiếu sheet ' + name); return; }
+    const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);
+    headerChecks[name].forEach(h => { if (!headers.includes(h)) errors.push(name + ' thiếu cột ' + h); });
+  });
+  return {ok:errors.length===0, errors:errors};
+}
+
 /** Health check production sau khi deploy/push source. */
 function productionHealthCheck() {
   const props = PropertiesService.getScriptProperties();
@@ -66,16 +97,20 @@ function productionHealthCheck() {
     databaseAccessible: false,
     rootFolderAccessible: false,
     schemaComplete: false,
+    commercialSchemaComplete: false,
     sessionSecretConfigured: !!props.getProperty(AUTH.SESSION_SECRET_PROP),
     mailQuotaAvailable: false,
     intelligenceTokenConfigured: !!intelligenceToken,
     weeklyTriggerInstalled: ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'triggerWeeklyDrafts')
   };
 
+  let commercial = {ok:false,errors:['Database chưa được kiểm tra']};
   try {
     const ss = SpreadsheetApp.openById(PRODUCTION.DB_ID);
     checks.databaseAccessible = true;
     checks.schemaComplete = Object.keys(SCHEMA).every(name => !!ss.getSheetByName(name));
+    commercial = commercialProductionSchemaCheck_(ss);
+    checks.commercialSchemaComplete = commercial.ok;
   } catch (err) {}
 
   try {
@@ -89,8 +124,9 @@ function productionHealthCheck() {
 
   return {
     ok: Object.values(checks).every(Boolean),
-    authMode: 'EMAIL_OTP',
+    authMode: 'SESSION',
     checks: checks,
+    commercialSchema: commercial,
     version: APP.VERSION,
     checkedAt: now_()
   };

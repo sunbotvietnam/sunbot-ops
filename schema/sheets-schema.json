@@ -1,25 +1,84 @@
 {
-  "version": 1,
+  "version": 2,
   "principles": [
     "Không hard-code tên nhân sự",
     "Một nhân sự có thể có nhiều vai trò",
     "Nhân viên không thao tác trực tiếp Google Sheet",
-    "Mỗi cập nhật phải có kết quả, việc tiếp theo và hạn",
-    "Trường và cơ hội kinh doanh là hai thực thể khác nhau"
+    "Mỗi cập nhật hợp lệ phải có kết quả, việc tiếp theo và hạn",
+    "Trường và cơ hội kinh doanh là hai thực thể khác nhau",
+    "Signal, Fact và Insight là ba lớp dữ liệu khác nhau",
+    "KPI là dữ liệu dẫn xuất, không nhập tay",
+    "Mỗi dữ liệu quan trọng chỉ có một nguồn canonical",
+    "AI không được tự thay thế raw truth; mọi insight phải truy được về source_id"
   ],
+  "enums": {
+    "account_status": ["TARGET","CONTACTED","ACTIVE","CUSTOMER","HOLD","LOST","DORMANT"],
+    "opportunity_stage": ["TARGET","CONTACTED","DISCOVERY","PROPOSAL","NEGOTIATION","WON","LOST","HOLD"],
+    "work_status": ["OPEN","IN_PROGRESS","DONE","CANCELLED","OVERDUE"],
+    "priority": ["P1","P2","P3"],
+    "market_signal_source_type": ["TAN_MAT_THAY","NGUOI_TRONG_TRUONG_NOI","THAY_TREN_MANG","TAI_LIEU_ANH_DUOC_GUI","NGHE_KE","KHAC"],
+    "market_signal_review_status": ["CHUA_REVIEW","DU_CAN_CU","CAN_XAC_MINH_THEM","KHONG_DUNG"],
+    "confidence": ["A","B","C","D"],
+    "actor_type": ["COMPETITOR","BENCHMARK","OPERATOR","PARTNER_CANDIDATE","ECOSYSTEM"],
+    "delivery_model": ["DIRECT_TEACHING","TEACHER_TRANSFER","LICENSE","FRANCHISE","PLATFORM","EVENT","HYBRID"],
+    "payer_type": ["SCHOOL","PARENT","PUBLIC_BUDGET","SPONSOR","MIXED","UNKNOWN"],
+    "equipment_model": ["PURCHASE","RENTAL","SPONSORED_UPFRONT","USAGE_BASED","BUNDLED","UNKNOWN"]
+  },
+  "required_fields": {
+    "TRUONG": ["account_id","ten_don_vi","owner_user_id","trang_thai","updated_at"],
+    "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","updated_at"],
+    "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","trang_thai","han_hoan_thanh","created_at","updated_at"],
+    "CAP_NHAT": ["update_id","thoi_gian","user_id","ket_qua","viec_tiep_theo","han"],
+    "THI_TRUONG_TIN_HIEU": ["signal_id","captured_at","user_id","raw_signal","source_type","review_status"],
+    "DOI_THU": ["competitor_id","ten_don_vi","actor_type","radar_priority","last_verified_at"],
+    "CHAO_BAN_THI_TRUONG": ["offer_id","competitor_id","ten_offer","delivery_model","verified_at","confidence"]
+  },
   "sheets": {
     "NHAN_SU": ["user_id","ho_ten","email","dia_ban","trang_thai","quan_ly_email","created_at","updated_at"],
     "VAI_TRO": ["role_code","ten_vai_tro","mo_ta","trang_thai"],
     "NHAN_SU_VAI_TRO": ["user_id","role_code","valid_from","valid_to"],
     "QUYEN_VAI_TRO": ["role_code","permission_code","allowed"],
     "TRUONG": ["account_id","ten_don_vi","loai_doi_tuong","tinh_thanh","quan_huyen","khoi_truong","owner_user_id","trang_thai","mo_hinh_hien_tai","mo_hinh_tiem_nang","nguoi_quyet_dinh","dien_thoai","viec_tiep_theo","han_viec_tiep_theo","cong_no_hien_tai","tai_san","updated_at"],
-    "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","gia_tri_du_kien","xac_suat","nguon","viec_tiep_theo","han_viec_tiep_theo","updated_at"],
-    "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","account_id","nhom_cong_viec","muc_uu_tien","trang_thai","han_hoan_thanh","hanh_dong_tiep","ngay_hanh_dong_tiep","can_ceo","noi_dung_can_ceo","ngay_hoan_thanh","created_at","updated_at"],
-    "CAP_NHAT": ["update_id","thoi_gian","user_id","account_id","work_id","loai_cap_nhat","trang_thai_truoc","trang_thai_moi","ket_qua","viec_tiep_theo","han","muc_do","can_ceo","noi_dung_can_ceo","bang_chung_url"],
+    "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","gia_tri_du_kien","xac_suat","nguon","viec_tiep_theo","han_viec_tiep_theo","expected_cash_date","lost_reason","updated_at"],
+    "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","account_id","opp_id","nhom_cong_viec","muc_uu_tien","trang_thai","han_hoan_thanh","hanh_dong_tiep","ngay_hanh_dong_tiep","can_ceo","noi_dung_can_ceo","ngay_hoan_thanh","created_at","updated_at"],
+    "CAP_NHAT": ["update_id","thoi_gian","user_id","account_id","opp_id","work_id","loai_cap_nhat","trang_thai_truoc","trang_thai_moi","ket_qua","viec_tiep_theo","han","muc_do","can_ceo","noi_dung_can_ceo","bang_chung_url"],
     "VAN_DE": ["issue_id","created_at","created_by_user_id","nhom_van_de","account_id","mo_ta","muc_do","can_ceo","de_nghi_ceo","owner_user_id","han_xu_ly","trang_thai","ket_qua_xu_ly","updated_at"],
     "CONG_NO": ["receivable_id","account_id","owner_user_id","so_tien","han_thanh_toan","ngay_du_kien_ve","trang_thai","ho_so_con_thieu","ghi_chu","updated_at"],
+    "THI_TRUONG_TIN_HIEU": ["signal_id","captured_at","user_id","account_id","competitor_id","offer_id","raw_signal","source_type","source_person","evidence_url","needs_verification","review_status","verified_fact","confidence","reviewed_by_user_id","reviewed_at","created_at","updated_at"],
+    "DOI_THU": ["competitor_id","ten_don_vi","actor_type","dia_ban","segments","core_model","school_channel_strength","radar_priority","baseline_summary","baseline_source","last_verified_at","updated_at","created_at"],
+    "CHAO_BAN_THI_TRUONG": ["offer_id","competitor_id","ten_offer","do_tuoi","components","delivery_model","price_value","price_unit","payer","equipment_model","positioning_message","evidence_url","verified_at","confidence","created_at","updated_at"],
     "BAO_CAO_TUAN": ["report_id","user_id","tuan_tu","tuan_den","ket_qua_chinh","thay_doi_quan_trong","van_de_mo","uu_tien_tuan_toi","nhan_dinh","da_gui","submitted_at","created_at","updated_at"],
     "AI_FEED": ["feed_id","timestamp","user_id","nhom_tin_hieu","doi_tuong","tin_hieu","muc_do","ceo_action","deadline","source_type","source_id"],
     "AUDIT_LOG": ["audit_id","timestamp","user_id","action","entity_type","entity_id","detail_json"]
+  },
+  "canonical_sources": {
+    "school_master": "TRUONG",
+    "opportunity_pipeline": "CO_HOI",
+    "future_action_and_deadline": "CONG_VIEC",
+    "completed_interaction_history": "CAP_NHAT",
+    "receivable_and_cash_truth": "CONG_NO",
+    "raw_market_intelligence": "THI_TRUONG_TIN_HIEU",
+    "competitor_baseline": "DOI_THU",
+    "market_offer_baseline": "CHAO_BAN_THI_TRUONG",
+    "ceo_normalized_signals": "AI_FEED",
+    "traceability": "AUDIT_LOG"
+  },
+  "derived_kpis": {
+    "school_coverage": {"sources":["TRUONG","CAP_NHAT"]},
+    "followup_hygiene": {"sources":["CONG_VIEC"]},
+    "pipeline_movement": {"sources":["CO_HOI","CAP_NHAT","AUDIT_LOG"]},
+    "proposal_output": {"sources":["CO_HOI"]},
+    "win_hold_lost": {"sources":["CO_HOI"]},
+    "expected_cash": {"sources":["CO_HOI","CONG_NO"]},
+    "cash_realized": {"sources":["CONG_NO"]},
+    "field_intelligence_contribution": {"sources":["THI_TRUONG_TIN_HIEU"]},
+    "data_hygiene": {"sources":["TRUONG","CO_HOI","CONG_VIEC"]}
+  },
+  "rules": {
+    "valid_update": "CAP_NHAT chỉ được tính là work evidence hợp lệ khi có ket_qua, viec_tiep_theo và han.",
+    "weekly_report": "BAO_CAO_TUAN không phải nguồn KPI; phần định lượng phải được hệ thống dẫn xuất từ dữ liệu canonical.",
+    "market_signal": "Sale chỉ nhập raw_signal/source/evidence; reviewer mới được nhập verified_fact/confidence.",
+    "ai_feed": "AI_FEED chỉ tham chiếu dữ liệu đã chuẩn hóa hoặc tín hiệu chưa xác minh nhưng phải giữ source_type/source_id.",
+    "next_action": "CONG_VIEC là nguồn canonical cho hành động tương lai; các trường next-action trong TRUONG/CO_HOI là cache tương thích V1."
   }
 }
