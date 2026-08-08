@@ -57,4 +57,25 @@ jobs:
         run: npx --yes @google/clasp@latest push --force
 
       - name: Create immutable version
-        run: npx --yes @google/clasp@latest version "GitHub $GITHUB_SHA"
+        id: version
+        shell: bash
+        run: |
+          OUT=$(npx --yes @google/clasp@latest create-version "GitHub $GITHUB_SHA")
+          echo "$OUT"
+          VERSION=$(printf '%s\n' "$OUT" | grep -Eo '[0-9]+' | tail -1)
+          test -n "$VERSION" || { echo 'Không lấy được Apps Script version number'; exit 1; }
+          echo "number=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update production web app deployment
+        shell: bash
+        run: |
+          VERSION='${{ steps.version.outputs.number }}'
+          DEPLOY_FILE='apps-script/.production-deployment-id'
+          if [ -s "$DEPLOY_FILE" ]; then
+            DEPLOY_ID=$(tr -d '\r\n ' < "$DEPLOY_FILE")
+            echo "Updating existing deployment $DEPLOY_ID"
+            npx --yes @google/clasp@latest create-deployment --versionNumber "$VERSION" --description "SUNBOT OPS production $GITHUB_SHA" --deploymentId "$DEPLOY_ID"
+          else
+            echo 'No production deployment ID recorded; creating first web app deployment.'
+            npx --yes @google/clasp@latest create-deployment --versionNumber "$VERSION" --description "SUNBOT OPS production $GITHUB_SHA"
+          fi
