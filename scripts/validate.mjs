@@ -4,9 +4,12 @@ import path from 'node:path';
 const required = [
   'apps-script/appsscript.json',
   'apps-script/Code.gs',
+  'apps-script/Auth.gs',
+  'apps-script/Production.gs',
   'apps-script/Index.html',
   'apps-script/Styles.html',
   'apps-script/Scripts.html',
+  'apps-script/OtpAuth.html',
   'schema/sheets-schema.json',
   'schema/roles.json',
   'docs/AI_CONTEXT.md',
@@ -34,8 +37,18 @@ for (const s of expected) {
 }
 
 const code = fs.readFileSync('apps-script/Code.gs','utf8');
-for (const token of ['setupSystem','configureSecrets','function api(','triggerWeeklyDrafts','getIntelligenceHttp_']) {
+for (const token of ['setupSystem','triggerWeeklyDrafts','getIntelligenceHttp_']) {
   if (!code.includes(token)) { console.error('Backend thiếu chức năng:', token); failed = true; }
+}
+
+const auth = fs.readFileSync('apps-script/Auth.gs','utf8');
+for (const token of ['function requestOtp(','function verifyOtp(','function apiSession(','computeHmacSha256Signature','MailApp.sendEmail']) {
+  if (!auth.includes(token)) { console.error('Auth OTP thiếu chức năng:', token); failed = true; }
+}
+
+const otpUi = fs.readFileSync('apps-script/OtpAuth.html','utf8');
+for (const token of ['requestLoginCode','verifyLoginCode','apiSession','localStorage']) {
+  if (!otpUi.includes(token)) { console.error('Frontend OTP thiếu chức năng:', token); failed = true; }
 }
 
 const forbidden = ['DATABASE_URL','PrismaClient','postgresql://'];
