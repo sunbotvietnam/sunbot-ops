@@ -1,8 +1,17 @@
 <script>
 (function(){
   const STORAGE_KEY='sunbot_ops_session';
+  const LOGIN_ENDPOINT='https://script.google.com/macros/s/AKfycbw32BGSXwFVOpRCknx5hn8-k2m5ZXox26_y2mnZKVWL0JKHCv_Qtly5JiY0FS9e87kU/exec';
 
   window.initGoogle=function(){
+    const injected=String(window.__SUNBOT_INITIAL_SESSION__||'');
+    if(injected){
+      localStorage.setItem(STORAGE_KEY,injected);
+      ID_TOKEN=injected;
+      callApi('bootstrap',{},data=>{BOOT=data;startApp();},true);
+      return;
+    }
+
     const saved=localStorage.getItem(STORAGE_KEY)||'';
     if(saved){
       ID_TOKEN=saved;
@@ -37,41 +46,30 @@
     const host=document.getElementById('googleSignIn');
     if(!host)return;
     host.innerHTML=`
-      <div style="display:grid;gap:10px;width:min(340px,100%);margin:0 auto;text-align:left">
+      <form method="post" action="${LOGIN_ENDPOINT}" target="_top" style="display:grid;gap:10px;width:min(340px,100%);margin:0 auto;text-align:left" onsubmit="return preparePasswordSubmit(this)">
+        <input type="hidden" name="action" value="adminPasswordLogin">
         <label style="font-size:13px;font-weight:600">Tên đăng nhập</label>
-        <input id="adminUsername" class="input" type="text" autocomplete="username" value="admin">
+        <input id="adminUsername" name="username" class="input" type="text" autocomplete="username" value="admin" required>
         <label style="font-size:13px;font-weight:600">Mật khẩu</label>
-        <input id="adminPassword" class="input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
-        <button id="adminLoginBtn" class="btn" onclick="loginAdminPasswordUi()">Đăng nhập</button>
-      </div>`;
+        <input id="adminPassword" name="password" class="input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••" required>
+        <button id="adminLoginBtn" class="btn" type="submit">Đăng nhập</button>
+      </form>`;
     const msg=document.getElementById('loginMsg');
     if(msg)msg.textContent='Đăng nhập quản trị SUNBOT OPS.';
     setTimeout(()=>{const e=document.getElementById('adminPassword');if(e)e.focus();},50);
   };
 
-  window.loginAdminPasswordUi=function(){
-    const username=(document.getElementById('adminUsername')?.value||'').trim();
-    const password=(document.getElementById('adminPassword')?.value||'');
-    if(!username||!password){toast('Hãy nhập tên đăng nhập và mật khẩu.');return;}
+  window.preparePasswordSubmit=function(){
     const btn=document.getElementById('adminLoginBtn');
     if(btn){btn.disabled=true;btn.textContent='Đang đăng nhập...';}
-    setLoading(true);
-    google.script.run
-      .withSuccessHandler(r=>{
-        setLoading(false);
-        if(btn){btn.disabled=false;btn.textContent='Đăng nhập';}
-        ID_TOKEN=r.token;
-        localStorage.setItem(STORAGE_KEY,ID_TOKEN);
-        callApi('bootstrap',{},data=>{BOOT=data;startApp();});
-      })
-      .withFailureHandler(err=>{
-        setLoading(false);
-        if(btn){btn.disabled=false;btn.textContent='Đăng nhập';}
-        const msg=document.getElementById('loginMsg');
-        if(msg)msg.textContent=(err&&err.message)||'Đăng nhập không thành công.';
-        showError(err);
-      })
-      .loginAdminPassword(username,password);
+    const msg=document.getElementById('loginMsg');
+    if(msg)msg.textContent='Đang xác thực trên máy chủ...';
+    return true;
+  };
+
+  window.loginAdminPasswordUi=function(){
+    const form=document.querySelector('#googleSignIn form');
+    if(form) form.requestSubmit();
   };
 
   window.logoutSunbotOps=function(){
