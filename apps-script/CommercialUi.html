@@ -1,0 +1,61 @@
+<script>
+(function(){
+  function ccall(action,payload,onOk){
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(r=>{setLoading(false);onOk&&onOk(r);})
+      .withFailureHandler(showError)
+      .apiSessionCommercial(ID_TOKEN,action,payload||{});
+  }
+
+  const originalShowScreen=window.showScreen;
+  window.showScreen=function(name){
+    if(name!=='commercial') return originalShowScreen(name);
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+    const el=document.getElementById('screen-commercial'); if(el) el.classList.add('active');
+    document.querySelectorAll('.sidebar button').forEach(b=>b.classList.toggle('active',b.dataset.screen===name));
+    renderCommercial('signals');
+  };
+
+  window.renderCommercial=function(tab){
+    const host=document.getElementById('screen-commercial'); if(!host)return;
+    host.innerHTML=`<div class="page-head"><div><span class="chip">Commercial Intelligence</span><h1>Thị trường & Cơ hội</h1><p>Sale ghi sự thật thực địa; hệ thống xử lý KPI và intelligence.</p></div></div>
+      <div class="tabs"><button class="${tab==='signals'?'active':''}" onclick="renderCommercial('signals')">Ghi nhận thị trường</button><button class="${tab==='opps'?'active':''}" onclick="renderCommercial('opps')">Cơ hội</button><button class="${tab==='kpi'?'active':''}" onclick="renderCommercial('kpi')">KPI</button></div><div id="commercialBody"></div>`;
+    if(tab==='signals') loadSignals(); else if(tab==='opps') loadOpps(); else loadKpi();
+  };
+
+  function loadSignals(){
+    ccall('marketSignals',{},rows=>{
+      const host=document.getElementById('commercialBody');
+      host.innerHTML=`<div class="grid2"><div class="card"><h2>Ghi nhận tín hiệu mới</h2><div class="field"><label>Trường/đơn vị liên quan</label><select id="cs_account" class="input"><option value="">Không gắn trường</option></select></div><div class="field" style="margin-top:10px"><label>Tôi biết được điều gì? *</label><textarea id="cs_signal" class="input" placeholder="Viết đúng điều mình thấy/nghe/được gửi, không cần phân tích."></textarea></div><div class="field" style="margin-top:10px"><label>Biết từ đâu? *</label><select id="cs_source" class="input"><option value="TAN_MAT_THAY">Tôi tận mắt thấy</option><option value="NGUOI_TRONG_TRUONG_NOI">Người trong trường nói</option><option value="THAY_TREN_MANG">Tôi thấy trên mạng</option><option value="TAI_LIEU_ANH_DUOC_GUI">Tài liệu/ảnh được gửi</option><option value="NGHE_KE">Nghe người khác kể</option><option value="KHAC">Khác</option></select></div><div class="field" style="margin-top:10px"><label>Ai cung cấp thông tin?</label><input id="cs_person" class="input"></div><div class="field" style="margin-top:10px"><label>Link / ảnh / tài liệu</label><input id="cs_evidence" class="input" placeholder="https://..."></div><div class="hint" style="margin-top:12px">Không cần chấm đúng/sai hay Confidence. Reviewer sẽ xác minh sau.</div><button class="btn" style="margin-top:12px" onclick="saveMarketSignal()">Lưu tín hiệu</button></div><div class="card"><h2>Tín hiệu gần đây</h2>${rows.length?rows.slice(0,20).map(signalHtml).join(''):'<div class="muted small">Chưa có tín hiệu.</div>'}</div></div>`;
+      callApi('accounts',{q:''},accounts=>{const el=document.getElementById('cs_account');if(el)el.innerHTML='<option value="">Không gắn trường</option>'+accounts.map(a=>`<option value="${esc(a.account_id)}">${esc(a.ten_don_vi)}</option>`).join('');});
+    });
+  }
+  function signalHtml(s){const status=String(s.review_status||'CHUA_REVIEW');return `<div class="task"><div class="task-bar ${status==='DU_CAN_CU'?'':'orange'}"></div><div><div class="task-title">${esc(s.raw_signal||'')}</div><div class="task-sub">${esc(sourceLabel(s.source_type))} · ${esc(statusLabelCi(status))}${s.verified_fact?'<br><b>Fact:</b> '+esc(s.verified_fact):''}</div></div><div class="task-due">${esc(String(s.captured_at||'').slice(0,10))}</div></div>`;}
+  function sourceLabel(v){return ({TAN_MAT_THAY:'Tận mắt thấy',NGUOI_TRONG_TRUONG_NOI:'Người trong trường nói',THAY_TREN_MANG:'Trên mạng',TAI_LIEU_ANH_DUOC_GUI:'Tài liệu/ảnh',NGHE_KE:'Nghe kể',KHAC:'Khác'})[v]||v||'';}
+  function statusLabelCi(v){return ({CHUA_REVIEW:'Chưa review',DU_CAN_CU:'Đủ căn cứ',CAN_XAC_MINH_THEM:'Cần xác minh',KHONG_DUNG:'Không dùng'})[v]||v||'';}
+
+  window.saveMarketSignal=function(){
+    const p={account_id:val('cs_account'),raw_signal:val('cs_signal'),source_type:val('cs_source'),source_person:val('cs_person'),evidence_url:val('cs_evidence'),needs_verification:true};
+    ccall('createMarketSignal',p,r=>{toast(r.message||'Đã lưu');loadSignals();});
+  };
+
+  function loadOpps(){
+    ccall('opportunities',{},rows=>{
+      const host=document.getElementById('commercialBody');
+      const total=rows.reduce((s,r)=>s+Number(r.gia_tri_du_kien||0),0);
+      host.innerHTML=`<div class="grid4">${metric('Cơ hội',rows.length,'Đang theo dõi')}${metric('Proposal',rows.filter(r=>r.trang_thai==='PROPOSAL').length,'Đã gửi đề xuất')}${metric('Negotiation',rows.filter(r=>r.trang_thai==='NEGOTIATION').length,'Đang đàm phán')}${metric('Tổng giá trị',money(total),'Giá trị thô','green')}</div><div class="card" style="margin-top:14px"><div class="section-title"><h2>Pipeline</h2><button class="btn" onclick="openOpportunityForm()">+ Cơ hội</button></div><div id="oppForm"></div>${rows.length?rows.map(oppHtml).join(''):'<div class="muted small">Chưa có cơ hội.</div>'}</div>`;
+    });
+  }
+  function oppHtml(o){return `<div class="account"><div><b>${esc(o.ten_co_hoi)}</b><div class="task-sub">${esc(o.san_pham||'')} · ${esc(o.trang_thai||'')}</div></div><div><b>${money(o.gia_tri_du_kien)}</b><div class="task-sub">XS ${esc(o.xac_suat||0)}%${o.expected_cash_date?' · tiền dự kiến '+esc(o.expected_cash_date):''}</div></div></div>`;}
+  window.openOpportunityForm=function(){
+    const host=document.getElementById('oppForm'); host.innerHTML=`<div class="card" style="margin:10px 0;background:#f8fafc"><div class="form-grid"><div class="field"><label>Trường *</label><select id="co_account" class="input"></select></div><div class="field"><label>Sản phẩm *</label><select id="co_product" class="input"><option>Lập trình tư duy cùng Sunbot</option><option>STEAM Sáng tạo cùng Sunbot</option><option>Lab / thiết bị</option><option>Chuyển giao / đào tạo</option><option>Sự kiện</option><option>Khác</option></select></div><div class="field"><label>Tên cơ hội *</label><input id="co_name" class="input"></div><div class="field"><label>Giá trị dự kiến</label><input id="co_value" class="input" inputmode="numeric"></div><div class="field"><label>Việc tiếp theo</label><input id="co_next" class="input"></div><div class="field"><label>Hạn</label><input id="co_due" type="date" class="input"></div></div><button class="btn" style="margin-top:10px" onclick="saveOpportunity()">Tạo cơ hội</button></div>`;
+    callApi('accounts',{q:''},rows=>{const e=document.getElementById('co_account');if(e)e.innerHTML=rows.map(a=>`<option value="${esc(a.account_id)}">${esc(a.ten_don_vi)}</option>`).join('');});
+  };
+  window.saveOpportunity=function(){const p={account_id:val('co_account'),ten_co_hoi:val('co_name'),san_pham:val('co_product'),gia_tri_du_kien:val('co_value'),viec_tiep_theo:val('co_next'),han_viec_tiep_theo:val('co_due')};ccall('createOpportunity',p,r=>{toast(r.message||'Đã tạo');loadOpps();});};
+
+  function loadKpi(){
+    ccall('kpi',{days:7},r=>{const host=document.getElementById('commercialBody');host.innerHTML=`<div class="grid4">${metric('Coverage',r.schoolCoverage.rate+'%',r.schoolCoverage.touched+'/'+r.schoolCoverage.owned+' trường')}${metric('Follow-up đúng hạn',r.followup.onTimeRate+'%',r.followup.overdue+' quá hạn',r.followup.overdue?'red':'green')}${metric('Work evidence',r.workEvidence.validRate+'%',r.workEvidence.valid+'/'+r.workEvidence.updates+' cập nhật hợp lệ')}${metric('Expected cash',money(r.pipeline.expectedCash),'Weighted pipeline','green')}</div><div class="grid2" style="margin-top:14px"><div class="card"><h2>Pipeline</h2><div class="report-box">Tổng cơ hội: ${r.pipeline.total}\nProposal: ${r.pipeline.proposals}\nWon: ${r.pipeline.wins}</div></div><div class="card"><h2>Market Intelligence</h2><div class="report-box">Tín hiệu ghi nhận: ${r.intelligence.signals}\nĐược reviewer chấp nhận: ${r.intelligence.accepted}</div></div></div>`;});
+  }
+})();
+</script>
