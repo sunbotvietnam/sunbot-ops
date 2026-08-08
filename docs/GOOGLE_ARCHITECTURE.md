@@ -38,11 +38,11 @@ Tài khoản Google sở hữu hệ thống: `hrmanager.kiro@gmail.com`.
 
 Drive production hiện đã có:
 - folder `SUNBOT OPS`;
-- thư mục hệ thống và các thư mục nghiệp vụ;
-- Google Sheet `SUNBOT_OPS_DATABASE`;
+- các folder `00_SYSTEM`, `01_TRUONG_DOI_TAC`, `02_HO_SO_THANH_TOAN`, `03_DE_XUAT_HOP_DONG`, `04_MINH_CHUNG`, `05_BAO_CAO`, `99_BACKUP`;
+- Google Sheet `SUNBOT_OPS_DATABASE` đặt trong `00_SYSTEM`;
 - schema V1 gồm NHAN_SU, VAI_TRO, NHAN_SU_VAI_TRO, QUYEN_VAI_TRO, TRUONG, CO_HOI, CONG_VIEC, CAP_NHAT, VAN_DE, CONG_NO, BAO_CAO_TUAN, AI_FEED, AUDIT_LOG;
 - user khởi tạo `hrmanager.kiro@gmail.com` với role ADMIN + CEO;
-- các role và permission cơ bản.
+- role/permission cơ bản đã được seed.
 
 ## Khởi tạo lại môi trường mới
 
