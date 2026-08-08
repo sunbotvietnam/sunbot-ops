@@ -41,7 +41,9 @@ const SCHEMA = Object.freeze({
 
 function doGet(e) {
   const action = String((e && e.parameter && e.parameter.action) || '').trim();
+  const view = String((e && e.parameter && e.parameter.view) || '').trim();
   if (action === 'intelligence') return getIntelligenceHttp_(e);
+  if (view === SERVER_TEST_VIEW_KEY) return renderServerTestView_();
   const t = HtmlService.createTemplateFromFile('Index');
   return t.evaluate().setTitle(APP.NAME).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
