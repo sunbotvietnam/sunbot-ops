@@ -1,0 +1,10 @@
+{
+  "name":"SUNBOT OPS",
+  "short_name":"SUNBOT OPS",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#f5f8fc",
+  "theme_color":"#2457b8",
+  "lang":"vi",
+  "icons":[]
+}
