@@ -8,6 +8,10 @@ const PASSWORD_AUTH = Object.freeze({
 });
 
 function loginAdminPassword(username, password) {
+  // Production mới đôi khi chưa có Script Properties sau migration/deploy.
+  // Tự phục hồi DB/root đã pin trong Production.gs trước mọi truy cập dữ liệu.
+  ensureProductionProperties_();
+
   const cache = CacheService.getScriptCache();
   const lockKey = 'ADMIN_LOGIN_LOCK';
   const failKey = 'ADMIN_LOGIN_FAILS';
@@ -57,6 +61,7 @@ function sha256Hex_(text) {
 
 function logPasswordAuth_(action, detail) {
   try {
+    ensureProductionProperties_();
     const sh = getDb_().getSheetByName(APP.SHEETS.AUDIT || 'AUDIT_LOG');
     if (!sh) return;
     sh.appendRow([
