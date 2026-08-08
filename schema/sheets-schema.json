@@ -45,7 +45,7 @@
     "VAN_DE": ["issue_id","created_at","created_by_user_id","nhom_van_de","account_id","mo_ta","muc_do","can_ceo","de_nghi_ceo","owner_user_id","han_xu_ly","trang_thai","ket_qua_xu_ly","updated_at"],
     "CONG_NO": ["receivable_id","account_id","owner_user_id","so_tien","han_thanh_toan","ngay_du_kien_ve","trang_thai","ho_so_con_thieu","ghi_chu","updated_at"],
     "THI_TRUONG_TIN_HIEU": ["signal_id","captured_at","user_id","account_id","competitor_id","offer_id","raw_signal","source_type","source_person","evidence_url","needs_verification","review_status","verified_fact","confidence","reviewed_by_user_id","reviewed_at","created_at","updated_at"],
-    "DOI_THU": ["competitor_id","ten_don_vi","actor_type","dia_ban","segments","core_model","school_channel_strength","radar_priority","baseline_summary","baseline_source","last_verified_at","created_at","updated_at"],
+    "DOI_THU": ["competitor_id","ten_don_vi","actor_type","dia_ban","segments","core_model","school_channel_strength","radar_priority","baseline_summary","baseline_source","last_verified_at","updated_at","created_at"],
     "CHAO_BAN_THI_TRUONG": ["offer_id","competitor_id","ten_offer","do_tuoi","components","delivery_model","price_value","price_unit","payer","equipment_model","positioning_message","evidence_url","verified_at","confidence","created_at","updated_at"],
     "BAO_CAO_TUAN": ["report_id","user_id","tuan_tu","tuan_den","ket_qua_chinh","thay_doi_quan_trong","van_de_mo","uu_tien_tuan_toi","nhan_dinh","da_gui","submitted_at","created_at","updated_at"],
     "AI_FEED": ["feed_id","timestamp","user_id","nhom_tin_hieu","doi_tuong","tin_hieu","muc_do","ceo_action","deadline","source_type","source_id"],
