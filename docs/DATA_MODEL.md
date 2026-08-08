@@ -1,12 +1,30 @@
-# SUNBOT OPS – Data Model
+# SUNBOT OPS – Data Model Google Sheets
 
-## Nguyên tắc chính
-- Một **Trường/Đơn vị** là một `Account` tồn tại lâu dài.
-- Một Account có thể có nhiều `Opportunity` theo thời gian: Dạy liên kết, Chuyển giao, Lab, Đào tạo, Sự kiện...
-- Một `User` có thể có nhiều `Role`.
-- Quyền đi qua `UserRole → Role → RolePermission → Permission`.
-- Dữ liệu cập nhật vận hành nằm ở `Task`, `Update`, `Receivable`, `WeeklyReport`.
-- Mọi thay đổi nhạy cảm cần audit trail.
+## Organization
+- `NHAN_SU`
+- `VAI_TRO`
+- `NHAN_SU_VAI_TRO`
+- `QUYEN_VAI_TRO`
 
-## Mục tiêu thiết kế
-Không phải thay schema khi một giáo viên sau này kiêm sale, một sale trở thành trưởng vùng, hay một nhân sự có thêm vai trò trainer.
+Một user có thể có nhiều role. Thay đổi/kiêm nhiệm vai trò không tạo user mới.
+
+## Market
+- `TRUONG`: hồ sơ trường/đơn vị lâu dài.
+- `CO_HOI`: cơ hội kinh doanh riêng theo sản phẩm/thời gian.
+
+Không dùng trạng thái của TRUONG thay cho trạng thái CO_HOI.
+
+## Execution
+- `CONG_VIEC`
+- `CAP_NHAT`
+- `VAN_DE`
+
+## Finance/Ops
+- `CONG_NO`
+
+## Reporting & Intelligence
+- `BAO_CAO_TUAN`
+- `AI_FEED`
+- `AUDIT_LOG`
+
+Schema từng cột nằm trong `schema/sheets-schema.json` và được mirror trong hằng `SCHEMA` của `apps-script/Code.gs` để hàm `setupSystem()` có thể tự tạo database.

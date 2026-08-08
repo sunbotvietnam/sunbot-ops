@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="theme-color" content="#2457b8">
+  <title>SUNBOT OPS</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div id="loginView" class="login-shell">
+    <div class="login-card">
+      <div class="logo-mark">S</div>
+      <h1>SUNBOT OPS</h1>
+      <p>Vận hành · Thị trường · Báo cáo</p>
+      <div id="googleSignIn"></div>
+      <div id="loginMsg" class="muted small"></div>
+    </div>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <header class="topbar">
+      <div class="brand-wrap"><div class="logo-mark sm">S</div><div><b>SUNBOT OPS</b><div id="userLine" class="sub"></div></div></div>
+      <button class="icon-btn" onclick="reloadHome()">↻</button>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <button data-screen="home" onclick="showScreen('home')">🏠 Trang chủ</button>
+      <button data-screen="update" onclick="showScreen('update')">✚ Cập nhật</button>
+      <button data-screen="tasks" onclick="showScreen('tasks')">✓ Công việc</button>
+      <button data-screen="accounts" onclick="showScreen('accounts')">🏫 Trường</button>
+      <button data-screen="weekly" onclick="showScreen('weekly')">▤ Báo cáo tuần</button>
+      <button id="adminNav" class="hidden" data-screen="admin" onclick="showScreen('admin')">⚙ Nhân sự & quyền</button>
+    </aside>
+
+    <main class="main">
+      <section id="screen-home" class="screen active"></section>
+      <section id="screen-update" class="screen"></section>
+      <section id="screen-tasks" class="screen"></section>
+      <section id="screen-accounts" class="screen"></section>
+      <section id="screen-weekly" class="screen"></section>
+      <section id="screen-admin" class="screen"></section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button onclick="showScreen('home')">🏠<span>Nhà</span></button>
+      <button onclick="showScreen('update')">✚<span>Cập nhật</span></button>
+      <button onclick="showScreen('tasks')">✓<span>Việc</span></button>
+      <button onclick="showScreen('accounts')">🏫<span>Trường</span></button>
+      <button onclick="showScreen('weekly')">▤<span>Báo cáo</span></button>
+    </nav>
+  </div>
+
+  <div id="toast"></div>
+  <div id="loading" class="loading hidden"><div class="spinner"></div><b>Đang xử lý...</b></div>
+  <?!= include('Scripts'); ?>
+</body>
+</html>
