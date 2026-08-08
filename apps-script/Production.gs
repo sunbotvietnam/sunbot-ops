@@ -14,18 +14,17 @@ function connectExistingProduction() {
   const root = DriveApp.getFolderById(PRODUCTION.ROOT_FOLDER_ID);
 
   const missingSheets = Object.keys(SCHEMA).filter(name => !ss.getSheetByName(name));
-  if (missingSheets.length) {
-    throw new Error('Database production thiếu sheet: ' + missingSheets.join(', '));
-  }
+  if (missingSheets.length) throw new Error('Database production thiếu sheet: ' + missingSheets.join(', '));
 
   props.setProperty(APP.PROP_DB_ID, PRODUCTION.DB_ID);
   props.setProperty(APP.PROP_ROOT_FOLDER_ID, PRODUCTION.ROOT_FOLDER_ID);
   props.setProperty('SUNBOT_OPS_OWNER_EMAIL', PRODUCTION.OWNER_EMAIL);
-
+  getSessionSecret_();
   installTriggers_();
 
   return {
     ok: true,
+    authMode: 'EMAIL_OTP',
     ownerEmail: PRODUCTION.OWNER_EMAIL,
     databaseUrl: ss.getUrl(),
     rootFolderUrl: root.getUrl(),
@@ -33,14 +32,11 @@ function connectExistingProduction() {
   };
 }
 
-/**
- * Health check production sau khi deploy/push source.
- */
+/** Health check production sau khi deploy/push source. */
 function productionHealthCheck() {
   const props = PropertiesService.getScriptProperties();
   const dbId = props.getProperty(APP.PROP_DB_ID);
   const rootId = props.getProperty(APP.PROP_ROOT_FOLDER_ID);
-  const clientId = props.getProperty(APP.PROP_GOOGLE_CLIENT_ID);
   const intelligenceToken = props.getProperty(APP.PROP_INTELLIGENCE_TOKEN);
 
   const checks = {
@@ -50,7 +46,8 @@ function productionHealthCheck() {
     databaseAccessible: false,
     rootFolderAccessible: false,
     schemaComplete: false,
-    googleClientConfigured: !!clientId,
+    sessionSecretConfigured: !!props.getProperty(AUTH.SESSION_SECRET_PROP),
+    mailQuotaAvailable: false,
     intelligenceTokenConfigured: !!intelligenceToken,
     weeklyTriggerInstalled: ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'triggerWeeklyDrafts')
   };
@@ -66,8 +63,13 @@ function productionHealthCheck() {
     checks.rootFolderAccessible = true;
   } catch (err) {}
 
+  try {
+    checks.mailQuotaAvailable = MailApp.getRemainingDailyQuota() > 0;
+  } catch (err) {}
+
   return {
     ok: Object.values(checks).every(Boolean),
+    authMode: 'EMAIL_OTP',
     checks: checks,
     version: APP.VERSION,
     checkedAt: now_()
