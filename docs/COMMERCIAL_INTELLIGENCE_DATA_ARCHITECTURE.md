@@ -1,6 +1,6 @@
 # SUNBOT COMMERCIAL INTELLIGENCE & OPS – Data Architecture v0.2
 
-Status: **Schema Lock candidate**
+Status: **Schema locked + additive production database migration completed on 08/08/2026; app code remains behind PR gate until CI/deploy.**
 
 ## 1. Mục tiêu
 
@@ -45,7 +45,7 @@ Một trường có thể có nhiều cơ hội độc lập: Lập trình tư d
 
 - `TRUONG` lưu account master;
 - `CO_HOI` lưu từng revenue object;
-- `CAP_NHAT` và `CONG_VIEC` phải có `opp_id` để action bám đúng opportunity khi cần.
+- `CAP_NHAT` và `CONG_VIEC` có `opp_id` để action bám đúng opportunity khi cần.
 
 ## 5. Opportunity stage chuẩn
 
@@ -176,7 +176,7 @@ Bản tin điều hành lấy từ:
 - Trang chủ: việc hôm nay, overdue, trường phụ trách, cơ hội của tôi.
 - Trường: xem/cập nhật account và lịch sử.
 - Cập nhật nhanh: tạo `CAP_NHAT` + next action.
-- Ghi nhận thị trường: tạo `THI_TRUONG_TIN_HIEU` ở dạng raw signal.
+- Thị trường & Cơ hội: tạo raw Market Signal, xem/tạo Opportunity và xem KPI derived của mình.
 
 ### Leader
 
@@ -203,11 +203,25 @@ Bản tin điều hành lấy từ:
 5. Thêm `DOI_THU`.
 6. Thêm `CHAO_BAN_THI_TRUONG`.
 7. Bổ sung enum, required fields, canonical sources và derived KPI contract vào `schema/sheets-schema.json`.
+8. Thêm backend `CommercialIntelligence.gs` và UI `CommercialUi.html` theo cách additive, giữ API V1 nguyên vẹn.
 
-## 15. Quy tắc migration
+## 15. Production migration 08/08/2026
+
+Đã thực hiện additive migration trên `SUNBOT_OPS_DATABASE`:
+
+- `CO_HOI`: thêm `expected_cash_date`, `lost_reason`;
+- `CONG_VIEC`: thêm `opp_id`;
+- `CAP_NHAT`: thêm `opp_id`;
+- tạo `THI_TRUONG_TIN_HIEU`;
+- tạo `DOI_THU`;
+- tạo `CHAO_BAN_THI_TRUONG`.
+
+Trước migration đã tạo snapshot backup riêng. Không xóa hoặc đổi tên cột V1, không sửa dữ liệu lịch sử.
+
+## 16. Quy tắc migration và deploy
 
 - Không xóa hoặc đổi tên cột V1 đang được app sử dụng trong cùng migration này.
 - Các cột next-action trong `TRUONG`/`CO_HOI` vẫn được giữ để tương thích, nhưng không còn là canonical.
-- Tạo bảng/cột mới trước, sau đó mới refactor Apps Script/UI.
-- Mọi migration phải idempotent và ghi `AUDIT_LOG`/migration version nếu có sửa dữ liệu.
-- Production chỉ được cập nhật sau khi schema validation và regression của V1 pass.
+- Backend Commercial Intelligence dùng API riêng `apiSessionCommercial` để giảm rủi ro regression với `apiSession` V1.
+- Raw Market Signal không đi vào `AI_FEED`; chỉ signal đã review `DU_CAN_CU` mới được chuẩn hóa vào `AI_FEED`.
+- Merge/deploy chỉ thực hiện sau CI pass; production phải được kiểm tra lại sau redeploy.
