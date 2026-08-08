@@ -97,7 +97,9 @@ Nhân viên có một module gọn `Thị trường & Cơ hội` gồm Ghi nhậ
 8. Thêm backend `CommercialIntelligence.gs` và UI `CommercialUi.html` additive, giữ API V1 nguyên vẹn.
 
 ## 15. Production migration 08/08/2026
-Đã thực hiện additive migration trên `SUNBOT_OPS_DATABASE`: bổ sung các field nói trên và tạo 3 sheet mới. Trước migration đã tạo snapshot backup riêng. Không xóa/đổi tên cột V1, không sửa dữ liệu lịch sử.
+Đã thực hiện additive migration trên `SUNBOT_OPS_DATABASE`: bổ sung các field nói trên và tạo 3 sheet mới. Không xóa/đổi tên cột V1, không sửa dữ liệu lịch sử.
+
+Snapshot trước migration: `SUNBOT_OPS_DATABASE_BACKUP_pre_CommercialIntel_v2_20260808` (Drive file ID `1bFtUY7fkCv79Qs5kgog55xTeOsVTgp7rIm40nSgXbp8`).
 
 ## 16. Runtime guard và deploy
 - `apiSessionCommercial` chạy `ensureCommercialRuntimeSchema_()` trước mỗi request, fail-fast nếu database chưa có đúng migration v2.
