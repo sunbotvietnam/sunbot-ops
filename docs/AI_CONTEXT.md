@@ -2,6 +2,13 @@
 
 Đây là SUNBOT OPS theo kiến trúc **GitHub + Google Drive ecosystem**.
 
+## Production hiện tại
+- Source: GitHub `sunbotvietnam/sunbot-ops`.
+- Google owner: `hrmanager.kiro@gmail.com`.
+- Runtime mục tiêu: Google Apps Script Web App.
+- Data: Google Sheets `SUNBOT_OPS_DATABASE` trong `SUNBOT OPS/00_SYSTEM`.
+- File/bằng chứng: Google Drive.
+
 ## Không được phá các nguyên tắc sau
 1. Không hard-code tên Dung, Thu, Hoàng Nhung, Vũ Thảo hoặc bất kỳ nhân sự nào.
 2. Một user có thể có nhiều role; quyền đi qua NHAN_SU_VAI_TRO → QUYEN_VAI_TRO.
@@ -17,7 +24,7 @@
 12. Mọi thay đổi quan trọng phải qua branch + PR và chạy CI validation.
 
 ## Khi Codex/ChatGPT được yêu cầu sửa
-- đọc README.md, docs/GOOGLE_ARCHITECTURE.md, schema/*.json trước;
+- đọc README.md, docs/GOOGLE_ARCHITECTURE.md, docs/PRODUCTION_OWNER.md, schema/*.json trước;
 - mô tả file sẽ sửa;
 - tạo branch riêng;
 - cập nhật schema/docs nếu business logic thay đổi;
