@@ -24,37 +24,29 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Normalize clasp credential JSON
+      - name: Write clasp credential files
         shell: bash
         run: |
           mkdir -p "$HOME"
-          python3 - <<'PY'
-          import json, os, pathlib, re, sys
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          printf '%s' "$CLASP_JSON" > .clasp.json
+          test -s "$HOME/.clasprc.json" || { echo 'CLASPRC_JSON is empty'; exit 1; }
+          test -s .clasp.json || { echo 'CLASP_JSON is empty'; exit 1; }
 
-          def normalize(name, output):
-              raw = os.environ.get(name, '')
-              if not raw.strip():
-                  print(f'{name} is empty')
-                  sys.exit(1)
-              text = raw.strip().lstrip('\ufeff')
-              text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.I)
-              text = re.sub(r'\s*```$', '', text)
-              start = text.find('{')
-              end = text.rfind('}')
-              if start >= 0 and end > start:
-                  text = text[start:end+1]
-              try:
-                  obj = json.loads(text)
-              except Exception as exc:
-                  print(f'{name} is not valid JSON after safe normalization: {exc}')
-                  print(f'{name} length={len(text)}, starts_object={text.startswith("{")}, ends_object={text.endswith("}")}')
-                  sys.exit(1)
-              pathlib.Path(output).write_text(json.dumps(obj, ensure_ascii=False), encoding='utf-8')
-              print(f'{name}: JSON OK')
-
-          normalize('CLASPRC_JSON', pathlib.Path.home()/'.clasprc.json')
-          normalize('CLASP_JSON', '.clasp.json')
-          PY
+      - name: Repair JSON syntax if needed
+        shell: bash
+        run: |
+          if ! jq -e . "$HOME/.clasprc.json" >/dev/null 2>&1; then
+            echo 'Repairing CLASPRC_JSON syntax locally on runner...'
+            npx --yes jsonrepair "$HOME/.clasprc.json" --overwrite
+          fi
+          if ! jq -e . .clasp.json >/dev/null 2>&1; then
+            echo 'Repairing CLASP_JSON syntax locally on runner...'
+            npx --yes jsonrepair .clasp.json --overwrite
+          fi
+          jq -e . "$HOME/.clasprc.json" >/dev/null || { echo 'CLASPRC_JSON remains invalid after repair'; exit 1; }
+          jq -e . .clasp.json >/dev/null || { echo 'CLASP_JSON remains invalid after repair'; exit 1; }
+          echo 'Credential JSON validated.'
 
       - name: Validate clasp project mapping
         shell: bash
