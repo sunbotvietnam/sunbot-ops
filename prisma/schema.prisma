@@ -7,12 +7,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserStatus { ACTIVE INACTIVE }
-enum AccountType { SCHOOL PARTNER COLLABORATOR CUSTOMER OTHER }
-enum AccountStatus { NEW CONTACTED QUALIFIED MEETING PROPOSAL NEGOTIATION WAITING WON ACTIVE ON_HOLD LOST CLOSED }
-enum TaskStatus { OPEN DOING WAITING DONE CANCELLED }
-enum Priority { LOW MEDIUM HIGH }
-enum OpportunityStatus { LEAD QUALIFIED MEETING PROPOSAL NEGOTIATION WON LOST }
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AccountType {
+  SCHOOL
+  PARTNER
+  COLLABORATOR
+  CUSTOMER
+  OTHER
+}
+
+enum AccountStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  MEETING
+  PROPOSAL
+  NEGOTIATION
+  WAITING
+  WON
+  ACTIVE
+  ON_HOLD
+  LOST
+  CLOSED
+}
+
+enum TaskStatus {
+  OPEN
+  DOING
+  WAITING
+  DONE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum OpportunityStatus {
+  LEAD
+  QUALIFIED
+  MEETING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
 
 model User {
   id          String      @id @default(cuid())
