@@ -24,21 +24,42 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Configure clasp credentials
+      - name: Normalize clasp credential JSON
         shell: bash
         run: |
           mkdir -p "$HOME"
-          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
-          printf '%s' "$CLASP_JSON" > .clasp.json
+          python3 - <<'PY'
+          import json, os, pathlib, re, sys
 
-      - name: Validate credential JSON
+          def normalize(name, output):
+              raw = os.environ.get(name, '')
+              if not raw.strip():
+                  print(f'{name} is empty')
+                  sys.exit(1)
+              text = raw.strip().lstrip('\ufeff')
+              text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.I)
+              text = re.sub(r'\s*```$', '', text)
+              start = text.find('{')
+              end = text.rfind('}')
+              if start >= 0 and end > start:
+                  text = text[start:end+1]
+              try:
+                  obj = json.loads(text)
+              except Exception as exc:
+                  print(f'{name} is not valid JSON after safe normalization: {exc}')
+                  print(f'{name} length={len(text)}, starts_object={text.startswith("{")}, ends_object={text.endswith("}")}')
+                  sys.exit(1)
+              pathlib.Path(output).write_text(json.dumps(obj, ensure_ascii=False), encoding='utf-8')
+              print(f'{name}: JSON OK')
+
+          normalize('CLASPRC_JSON', pathlib.Path.home()/'.clasprc.json')
+          normalize('CLASP_JSON', '.clasp.json')
+          PY
+
+      - name: Validate clasp project mapping
         shell: bash
         run: |
-          test -s "$HOME/.clasprc.json" || { echo 'CLASPRC_JSON is empty'; exit 1; }
-          test -s .clasp.json || { echo 'CLASP_JSON is empty'; exit 1; }
-          jq -e . "$HOME/.clasprc.json" >/dev/null || { echo 'CLASPRC_JSON is not valid JSON'; exit 1; }
-          jq -e . .clasp.json >/dev/null || { echo 'CLASP_JSON is not valid JSON'; exit 1; }
-          jq -e 'has("scriptId") and has("rootDir")' .clasp.json >/dev/null || { echo 'CLASP_JSON must contain scriptId and rootDir'; exit 1; }
+          jq -e 'has("scriptId") and has("rootDir") and (.rootDir == "apps-script")' .clasp.json >/dev/null || { echo 'CLASP_JSON must contain scriptId and rootDir=apps-script'; exit 1; }
 
       - name: Push Apps Script source
         run: npx --yes @google/clasp@latest push --force
