@@ -38,20 +38,27 @@ sunbot-ops/
 │  └─ roles.json
 ├─ docs/
 │  ├─ AI_CONTEXT.md
-│  └─ GOOGLE_ARCHITECTURE.md
+│  ├─ GOOGLE_ARCHITECTURE.md
+│  └─ PRODUCTION_OWNER.md
 ├─ scripts/
 │  └─ validate.mjs
 └─ .github/workflows/ci.yml
 ```
 
-## Khởi tạo production
+## Production hiện tại
+
+Tài khoản Google sở hữu hệ thống: `hrmanager.kiro@gmail.com`.
+
+Drive đã có folder `SUNBOT OPS` và database `SUNBOT_OPS_DATABASE` với schema V1, vai trò và quyền cơ bản.
+
+## Khởi tạo/khôi phục production
 
 Đọc `docs/GOOGLE_ARCHITECTURE.md`.
 
-Lệnh khởi tạo chính trong Apps Script:
+Nếu cần khởi tạo lại một môi trường mới bằng Apps Script:
 
 ```javascript
-setupSystem('tuongvan1906@gmail.com')
+setupSystem('hrmanager.kiro@gmail.com')
 ```
 
 Sau đó cấu hình Google OAuth Client ID và Intelligence token:
