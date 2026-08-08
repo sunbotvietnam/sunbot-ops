@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "principles": [
+    "Không hard-code tên nhân sự",
+    "Một nhân sự có thể có nhiều vai trò",
+    "Nhân viên không thao tác trực tiếp Google Sheet",
+    "Mỗi cập nhật phải có kết quả, việc tiếp theo và hạn",
+    "Trường và cơ hội kinh doanh là hai thực thể khác nhau"
+  ],
+  "sheets": {
+    "NHAN_SU": ["user_id","ho_ten","email","dia_ban","trang_thai","quan_ly_email","created_at","updated_at"],
+    "VAI_TRO": ["role_code","ten_vai_tro","mo_ta","trang_thai"],
+    "NHAN_SU_VAI_TRO": ["user_id","role_code","valid_from","valid_to"],
+    "QUYEN_VAI_TRO": ["role_code","permission_code","allowed"],
+    "TRUONG": ["account_id","ten_don_vi","loai_doi_tuong","tinh_thanh","quan_huyen","khoi_truong","owner_user_id","trang_thai","mo_hinh_hien_tai","mo_hinh_tiem_nang","nguoi_quyet_dinh","dien_thoai","viec_tiep_theo","han_viec_tiep_theo","cong_no_hien_tai","tai_san","updated_at"],
+    "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","gia_tri_du_kien","xac_suat","nguon","viec_tiep_theo","han_viec_tiep_theo","updated_at"],
+    "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","account_id","nhom_cong_viec","muc_uu_tien","trang_thai","han_hoan_thanh","hanh_dong_tiep","ngay_hanh_dong_tiep","can_ceo","noi_dung_can_ceo","ngay_hoan_thanh","created_at","updated_at"],
+    "CAP_NHAT": ["update_id","thoi_gian","user_id","account_id","work_id","loai_cap_nhat","trang_thai_truoc","trang_thai_moi","ket_qua","viec_tiep_theo","han","muc_do","can_ceo","noi_dung_can_ceo","bang_chung_url"],
+    "VAN_DE": ["issue_id","created_at","created_by_user_id","nhom_van_de","account_id","mo_ta","muc_do","can_ceo","de_nghi_ceo","owner_user_id","han_xu_ly","trang_thai","ket_qua_xu_ly","updated_at"],
+    "CONG_NO": ["receivable_id","account_id","owner_user_id","so_tien","han_thanh_toan","ngay_du_kien_ve","trang_thai","ho_so_con_thieu","ghi_chu","updated_at"],
+    "BAO_CAO_TUAN": ["report_id","user_id","tuan_tu","tuan_den","ket_qua_chinh","thay_doi_quan_trong","van_de_mo","uu_tien_tuan_toi","nhan_dinh","da_gui","submitted_at","created_at","updated_at"],
+    "AI_FEED": ["feed_id","timestamp","user_id","nhom_tin_hieu","doi_tuong","tin_hieu","muc_do","ceo_action","deadline","source_type","source_id"],
+    "AUDIT_LOG": ["audit_id","timestamp","user_id","action","entity_type","entity_id","detail_json"]
+  }
+}

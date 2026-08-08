@@ -1,0 +1,12 @@
+{
+  "roles": {
+    "TEACHER": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "MARKET": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "TRAINER": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "SALE_OPS": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "OPS_ADMIN": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "REGION_LEAD": ["dashboard.view","update.create","task.view","account.view","weekly.view","weekly.submit"],
+    "CEO": ["dashboard.view","update.create","task.view","task.view_all","account.view","account.view_all","weekly.view","weekly.submit","ceo.view"],
+    "ADMIN": ["dashboard.view","update.create","task.view","task.view_all","account.view","account.view_all","weekly.view","weekly.submit","ceo.view","admin.people"]
+  }
+}

@@ -6,15 +6,12 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npx prisma generate
-      - run: npm run build
-        env:
-          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+      - name: Validate SUNBOT OPS structure and schema
+        run: node scripts/validate.mjs
