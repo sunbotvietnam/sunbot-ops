@@ -1,0 +1,59 @@
+<script>
+(function(){
+  function ceoCall(action,payload,onOk){
+    if(!(BOOT&&BOOT.can&&BOOT.can['ceo.view'])) return;
+    google.script.run.withSuccessHandler(function(r){if(onOk)onOk(r);}).withFailureHandler(function(err){console.error('CEO Intelligence',err);}).apiSessionCeo(ID_TOKEN,action,payload||{});
+  }
+
+  var baseRenderHome=window.renderHome;
+  window.renderHome=function(){
+    baseRenderHome();
+    if(!(BOOT&&BOOT.can&&BOOT.can['ceo.view'])) return;
+    var screen=document.getElementById('screen-home');
+    if(!screen||document.getElementById('ceoCockpit')) return;
+    var box=document.createElement('div');
+    box.id='ceoCockpit';
+    box.style.marginTop='18px';
+    box.innerHTML='<div class="card"><h2>CEO Commercial Cockpit</h2><div class="muted small">Đang tổng hợp pipeline, cash, execution và market intelligence...</div></div>';
+    screen.appendChild(box);
+    loadCeoCockpit();
+  };
+
+  window.loadCeoCockpit=function(){
+    ceoCall('cockpit',{days:7},function(r){
+      var host=document.getElementById('ceoCockpit'); if(!host)return;
+      var s=r.summary;
+      host.innerHTML='<div class="page-head"><div><span class="chip">CEO · 7 ngày</span><h1 style="font-size:22px">Commercial Cockpit</h1><p>Dữ liệu dẫn xuất trực tiếp từ nguồn vận hành canonical.</p></div></div>'+
+        '<div class="grid4">'+
+        metric('Weighted pipeline',money(s.weighted_pipeline),s.active_opportunities+' cơ hội','green')+
+        metric('Việc quá hạn',s.overdue_tasks,s.ceo_tasks+' việc cần CEO',s.overdue_tasks?'red':'green')+
+        metric('Tiền 7 ngày',money(s.cash_expected_7d),'Công nợ mở '+money(s.outstanding_receivables),'green')+
+        metric('Market facts',s.accepted_market_facts,s.pending_market_review+' tín hiệu chờ review',s.pending_market_review?'orange':'blue')+
+        '</div><div class="grid2" style="margin-top:14px"><div class="card"><h2>Pipeline quan trọng</h2>'+renderTopOpps(r.pipeline.top)+'</div><div class="card"><h2>Quyết định cần CEO</h2>'+renderDecisions(r.decisions)+'</div></div>'+
+        '<div class="grid2" style="margin-top:14px"><div class="card"><h2>Market Intelligence</h2>'+renderFacts(r.market.facts)+'</div><div class="card" id="ceoWeeklyBox"><h2>CEO Weekly Intelligence</h2><div class="muted small">Đang tổng hợp...</div></div></div>';
+      loadCeoWeeklyBox();
+    });
+  };
+
+  function renderTopOpps(rows){
+    if(!rows||!rows.length)return '<div class="muted small">Chưa có opportunity.</div>';
+    return rows.slice(0,6).map(function(o){return '<div class="account"><div><b>'+esc(o.account||o.name||'')+'</b><div class="task-sub">'+esc(o.name||'')+' · '+esc(o.stage||'')+' · '+esc(o.owner||'')+'</div></div><div><b>'+money(o.value)+'</b><div class="task-sub">XS '+esc(o.probability||0)+'%</div></div></div>';}).join('');
+  }
+  function renderDecisions(rows){
+    if(!rows||!rows.length)return '<div class="muted small">Không có decision request đang mở.</div>';
+    return rows.slice(0,6).map(function(d){return '<div class="task"><div class="task-bar orange"></div><div><div class="task-title">'+esc(d.description||'')+'</div><div class="task-sub">'+esc(d.ask||'')+' · '+esc(d.owner||'')+'</div></div><div class="task-due">'+esc(d.due||'')+'</div></div>';}).join('');
+  }
+  function renderFacts(rows){
+    if(!rows||!rows.length)return '<div class="muted small">Chưa có fact mới được xác minh trong kỳ.</div>';
+    return rows.slice(0,6).map(function(f){return '<div class="task"><div class="task-bar"></div><div><div class="task-title">'+esc(f.fact||'')+'</div><div class="task-sub">'+esc(f.subject||'')+' · Confidence '+esc(f.confidence||'')+'</div></div></div>';}).join('');
+  }
+  function loadCeoWeeklyBox(){
+    ceoCall('weekly',{days:7},function(r){
+      var host=document.getElementById('ceoWeeklyBox');if(!host)return;
+      var e=r.executive_summary;
+      var risk=r.team_attention||[];
+      host.innerHTML='<div class="section-title"><h2>CEO Weekly Intelligence</h2><span class="chip">'+esc(r.period.from)+' → '+esc(r.period.to)+'</span></div><div class="report-box">• '+esc(e.pipeline)+'\n• '+esc(e.execution)+'\n• '+esc(e.cash)+'\n• '+esc(e.market)+'</div>'+(risk.length?'<div class="hint" style="margin-top:10px"><b>Cần chú ý:</b> '+risk.slice(0,4).map(function(x){return esc(x.ho_ten)+' ('+x.followup.overdue+' quá hạn)';}).join(' · ')+'</div>':'');
+    });
+  }
+})();
+</script>
