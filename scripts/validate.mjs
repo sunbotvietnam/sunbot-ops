@@ -5,7 +5,7 @@ const required = [
   'apps-script/appsscript.json','apps-script/Code.gs','apps-script/Auth.gs','apps-script/PasswordAuth.gs','apps-script/Production.gs',
   'apps-script/CommercialIntelligence.gs','apps-script/CeoIntelligence.gs','apps-script/Outreach.gs','apps-script/OutreachContact.gs','apps-script/PagesBridge.gs','apps-script/OtpHttp.gs',
   'apps-script/Index.html','apps-script/Styles.html','apps-script/Scripts.html','apps-script/CommercialUi.html','apps-script/OutreachUi.html','apps-script/OutreachContactUi.html','apps-script/CeoCockpitUi.html','apps-script/OtpAuth.html',
-  'frontend/index.html','frontend/app.js','frontend/styles.css',
+  'frontend/index.html','frontend/app.js','frontend/pin-login.js','frontend/styles.css',
   'schema/sheets-schema.json','schema/roles.json','docs/AI_CONTEXT.md','docs/GOOGLE_ARCHITECTURE.md','docs/COMMERCIAL_INTELLIGENCE_DATA_ARCHITECTURE.md','README.md'
 ];
 let failed=false;
@@ -31,17 +31,15 @@ for(const token of ['function apiSessionOutreachContact(','VERIFY_CONTACT','CAN_
 const ceo=fs.readFileSync('apps-script/CeoIntelligence.gs','utf8');
 for(const token of ['function apiSessionCeo(','ceoCockpit_','ceoWeeklyIntelligence_','weighted_pipeline','pending_market_review','team_attention'])if(!ceo.includes(token)){console.error('CEO Intelligence backend thiếu chức năng:',token);failed=true;}
 const auth=fs.readFileSync('apps-script/Auth.gs','utf8');
-for(const token of ['function apiSession(','computeHmacSha256Signature','function createSessionToken_(','function requestOtp(','function verifyOtp('])if(!auth.includes(token)){console.error('Session auth thiếu chức năng:',token);failed=true;}
+for(const token of ['function apiSession(','computeHmacSha256Signature','function createSessionToken_('])if(!auth.includes(token)){console.error('Session auth thiếu chức năng:',token);failed=true;}
 const pagesBridge=fs.readFileSync('apps-script/PagesBridge.gs','utf8');
-for(const token of ['handlePagesBridge_','requestOtp','verifyOtp','apiSessionOutreach','apiSessionOutreachContact','sunbot-pages-response','https://sunbotvietnam.github.io'])if(!pagesBridge.includes(token)){console.error('Pages bridge thiếu chức năng:',token);failed=true;}
+for(const token of ['handlePagesBridge_','pagesPinLogin_','pinLogin','loginPassword_','apiSessionOutreach','apiSessionOutreachContact','sunbot-pages-response','https://sunbotvietnam.github.io'])if(!pagesBridge.includes(token)){console.error('Pages bridge thiếu chức năng PIN:',token);failed=true;}
 const otpHttp=fs.readFileSync('apps-script/OtpHttp.gs','utf8');
 if(!otpHttp.includes("action === 'pagesBridge'")){console.error('doPost chưa nối GitHub Pages bridge');failed=true;}
 
 const passwordAuth=fs.readFileSync('apps-script/PasswordAuth.gs','utf8');
-for(const token of ['function loginAdminPassword(','ADMIN_PASSWORD_SHA256','MAX_ATTEMPTS','LOCK_SECONDS'])if(!passwordAuth.includes(token)){console.error('Password auth thiếu chức năng:',token);failed=true;}
-if(passwordAuth.includes("ADMIN_PASSWORD: '6868'")||passwordAuth.includes('ADMIN_PASSWORD = "6868"')){console.error('Không được lưu PIN quản trị dạng rõ trong source.');failed=true;}
-const loginUi=fs.readFileSync('apps-script/OtpAuth.html','utf8');
-for(const token of ['loginAdminPasswordUi','loginAdminPassword','apiSession','localStorage'])if(!loginUi.includes(token)){console.error('Frontend password login thiếu chức năng:',token);failed=true;}
+for(const token of ['function loginAdminPassword(','STAFF_PIN_SHA256','MAX_ATTEMPTS','LOCK_SECONDS'])if(!passwordAuth.includes(token)){console.error('Password auth thiếu chức năng:',token);failed=true;}
+for(const raw of ['5678','3456','1234'])if(passwordAuth.includes(raw)){console.error('Không được lưu PIN nhân viên dạng rõ trong source.');failed=true;}
 const commercialUi=fs.readFileSync('apps-script/CommercialUi.html','utf8');
 for(const token of ['apiSessionCommercial','Ghi nhận thị trường','Cơ hội','Kết quả','saveMarketSignal','saveOpportunity','cs_competitor','marketOverview','Độ phủ trường','Thông tin thị trường'])if(!commercialUi.includes(token)){console.error('Commercial UI thiếu chức năng/Việt hóa:',token);failed=true;}
 const outreachUi=fs.readFileSync('apps-script/OutreachUi.html','utf8');
@@ -52,9 +50,12 @@ const index=fs.readFileSync('apps-script/Index.html','utf8');
 for(const token of ['screen-commercial','CommercialUi','OutreachUi','OutreachContactUi','CeoCockpitUi','Thị trường & Cơ hội'])if(!index.includes(token)){console.error('Index chưa nối UI:',token);failed=true;}
 
 const pages=fs.readFileSync('frontend/app.js','utf8');
-for(const token of ['pagesBridge','requestOtp','verifyOtp','Tiếp cận trường','Soạn bằng Gmail của tôi','sunbotvietnam@gmail.com','authuser=','markSent','createOpportunity'])if(!pages.includes(token)){console.error('GitHub Pages frontend thiếu chức năng:',token);failed=true;}
+for(const token of ['pagesBridge','Tiếp cận trường','Soạn bằng Gmail của tôi','sunbotvietnam@gmail.com','authuser=','markSent','createOpportunity'])if(!pages.includes(token)){console.error('GitHub Pages frontend thiếu chức năng:',token);failed=true;}
+const pinLogin=fs.readFileSync('frontend/pin-login.js','utf8');
+for(const token of ['pinLogin','Mã PIN 4 số','loginWithPin'])if(!pinLogin.includes(token)){console.error('GitHub Pages PIN login thiếu chức năng:',token);failed=true;}
+for(const raw of ['5678','3456','1234'])if(pinLogin.includes(raw)){console.error('Không được lưu PIN nhân viên dạng rõ trong frontend.');failed=true;}
 const pagesIndex=fs.readFileSync('frontend/index.html','utf8');
-if(!pagesIndex.includes('<title>SUNBOT OPS</title>')){console.error('GitHub Pages index chưa đúng app');failed=true;}
+for(const token of ['<title>SUNBOT OPS</title>','pin-login.js'])if(!pagesIndex.includes(token)){console.error('GitHub Pages index chưa nối PIN login:',token);failed=true;}
 
 const forbidden=['DATABASE_URL','PrismaClient','postgresql://'];
 for(const f of required.filter(x=>fs.existsSync(x))){const text=fs.readFileSync(f,'utf8');for(const x of forbidden)if(text.includes(x)){console.error(`Phát hiện dấu vết backend cũ ${x} trong ${f}`);failed=true;}}
