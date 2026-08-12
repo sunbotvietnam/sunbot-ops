@@ -59,8 +59,11 @@ function pagesBridgeHtml_(requestId, result, error) {
     error: error || ''
   };
   const json = JSON.stringify(message).replace(/<\//g, '<\\/');
+  // Apps Script HTML Service renders inside Google's own sandbox iframe.
+  // window.parent points to Google's wrapper, not the GitHub Pages app.
+  // postMessage to window.top so the response reaches the actual Pages window.
   const html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
-    '<script>window.parent.postMessage(' + json + ', ' + JSON.stringify(SUNBOT_PAGES_ORIGIN) + ');<\/script>' +
+    '<script>(function(){try{window.top.postMessage(' + json + ', ' + JSON.stringify(SUNBOT_PAGES_ORIGIN) + ');}catch(e){window.parent.postMessage(' + json + ', "*");}})();<\/script>' +
     '</body></html>';
   return HtmlService.createHtmlOutput(html)
     .setTitle('SUNBOT OPS Bridge')
