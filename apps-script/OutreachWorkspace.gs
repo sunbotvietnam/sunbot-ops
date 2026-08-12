@@ -38,9 +38,7 @@ function outreachWorkspaceDetail_(user, p) {
 }
 
 function outreachWorkspacePeople_(user) {
-  if (!(user.permissions['ceo.view'] || user.permissions['admin.people'] || user.permissions['account.view_all'])) {
-    return {people:[]};
-  }
+  if (!(user.permissions['ceo.view'] || user.permissions['admin.people'] || user.permissions['account.view_all'])) return {people:[]};
   const people = getAll_(APP.SHEETS.PEOPLE).filter(function(p){ return isActiveStatus_(p.trang_thai) && String(p.email || '').trim(); }).map(function(p){
     return {user_id:String(p.user_id),ho_ten:String(p.ho_ten || ''),email:String(p.email || ''),dia_ban:String(p.dia_ban || '')};
   }).sort(function(a,b){return a.ho_ten.localeCompare(b.ho_ten,'vi');});
@@ -63,6 +61,26 @@ function outreachWorkspaceSave_(user, p) {
   if (p.thong_diep_de_xuat !== undefined) patch.thong_diep_de_xuat = String(p.thong_diep_de_xuat || '').trim();
   if (p.ket_qua_phan_hoi !== undefined) patch.ket_qua_phan_hoi = String(p.ket_qua_phan_hoi || '').trim();
   if (p.ngay_theo_doi_lai !== undefined) patch.ngay_theo_doi_lai = String(p.ngay_theo_doi_lai || '').trim();
+
+  // Khi nhân viên xác minh được email, tự động đóng việc xác minh và sinh việc gửi hồ sơ.
+  if (patch.email_truong && ['CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU'].includes(String(row.trang_thai_thuc_hien || ''))) {
+    if (row.work_id) {
+      try { updateById_('CONG_VIEC','work_id',row.work_id,{trang_thai:'DONE',ngay_hoan_thanh:dateOutreach_(new Date()),updated_at:now_()}); } catch (ignored) {}
+    }
+    const due = dateOutreach_(addBusinessDaysOutreach_(new Date(),2));
+    const newWorkId = id_('WORK');
+    append_('CONG_VIEC',{
+      work_id:newWorkId,ten_cong_viec:'Soạn và gửi hồ sơ tới ' + row.ten_truong,owner_user_id:row.owner_user_id || user.user_id,
+      account_id:row.account_id||'',opp_id:'',nhom_cong_viec:'TIEP_CAN_TRUONG',muc_uu_tien:priorityCode_(row.uu_tien),trang_thai:'OPEN',
+      han_hoan_thanh:due,hanh_dong_tiep:'Soạn thư phù hợp và gửi hồ sơ tới email đã xác minh.',ngay_hanh_dong_tiep:due,
+      can_ceo:'FALSE',noi_dung_can_ceo:'',ngay_hoan_thanh:'',created_at:now_(),updated_at:now_()
+    });
+    patch.trang_thai_thuc_hien='CAN_GUI';
+    patch.work_id=newWorkId;
+    patch.hanh_dong_de_xuat='Soạn thư phù hợp và gửi hồ sơ tới email đã xác minh.';
+    patch.ngay_theo_doi_lai=due;
+  }
+
   updateById_(OUTREACH.SHEET, 'outreach_id', row.outreach_id, patch);
 
   if (row.account_id) {
@@ -73,7 +91,6 @@ function outreachWorkspaceSave_(user, p) {
     try { updateById_('TRUONG', 'account_id', row.account_id, accountPatch); } catch (ignored) {}
   }
 
-  // Đồng bộ contact và địa chỉ về bảng nghiên cứu nguồn để tránh sync ngược dữ liệu cũ.
   try {
     if (row.source_sheet && row.source_row) {
       const src = SpreadsheetApp.openById(OUTREACH.SOURCE_SPREADSHEET_ID).getSheetByName(String(row.source_sheet));
@@ -91,7 +108,8 @@ function outreachWorkspaceSave_(user, p) {
   }
 
   audit_(user,'WORKSPACE_SAVE',OUTREACH.SHEET,row.outreach_id,patch);
-  return {ok:true,message:'Đã lưu thông tin trường.'};
+  const advanced = patch.trang_thai_thuc_hien === 'CAN_GUI' && patch.trang_thai_thuc_hien !== row.trang_thai_thuc_hien;
+  return {ok:true,message:advanced?'Đã xác minh contact và tạo việc gửi hồ sơ.':'Đã lưu thông tin trường.'};
 }
 
 function outreachWorkspaceReassign_(user, p) {
