@@ -30,6 +30,7 @@
       <button data-screen="update" onclick="showScreen('update')">✚ Cập nhật</button>
       <button data-screen="tasks" onclick="showScreen('tasks')">✓ Công việc</button>
       <button data-screen="accounts" onclick="showScreen('accounts')">🏫 Trường</button>
+      <button data-screen="outreach" onclick="showScreen('outreach')">✉ Tiếp cận trường</button>
       <button data-screen="commercial" onclick="showScreen('commercial')">📡 Thị trường & Cơ hội</button>
       <button data-screen="weekly" onclick="showScreen('weekly')">▤ Báo cáo tuần</button>
       <button id="adminNav" class="hidden" data-screen="admin" onclick="showScreen('admin')">⚙ Nhân sự & quyền</button>
@@ -40,6 +41,7 @@
       <section id="screen-update" class="screen"></section>
       <section id="screen-tasks" class="screen"></section>
       <section id="screen-accounts" class="screen"></section>
+      <section id="screen-outreach" class="screen"></section>
       <section id="screen-commercial" class="screen"></section>
       <section id="screen-weekly" class="screen"></section>
       <section id="screen-admin" class="screen"></section>
@@ -50,7 +52,7 @@
       <button onclick="showScreen('update')">✚<span>Cập nhật</span></button>
       <button onclick="showScreen('tasks')">✓<span>Việc</span></button>
       <button onclick="showScreen('accounts')">🏫<span>Trường</span></button>
-      <button onclick="showScreen('commercial')">📡<span>Thị trường</span></button>
+      <button data-outreach-nav="1" onclick="showScreen('outreach')">✉<span>Tiếp cận</span></button>
     </nav>
   </div>
 
@@ -61,6 +63,8 @@
   <?!= include('OtpAuth'); ?>
   <?!= include('OtpTransport'); ?>
   <?!= include('CommercialUi'); ?>
+  <?!= include('OutreachUi'); ?>
+  <?!= include('OutreachContactUi'); ?>
   <?!= include('CeoCockpitUi'); ?>
 </body>
 </html>

@@ -1,0 +1,122 @@
+<script>
+(function(){
+  let OUTREACH_ROWS=[];
+  let CURRENT_EMAIL=null;
+
+  function oCall(action,payload,onOk){
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function(r){setLoading(false);if(onOk)onOk(r);})
+      .withFailureHandler(function(err){setLoading(false);showError(err);})
+      .apiSessionOutreach(ID_TOKEN,action,payload||{});
+  }
+
+  function installOutreachNav(){
+    if(!document.getElementById('screen-outreach')){
+      const main=document.querySelector('.main');
+      const s=document.createElement('section');s.id='screen-outreach';s.className='screen';main.appendChild(s);
+    }
+    const side=document.getElementById('sidebar');
+    if(side&&!side.querySelector('[data-screen="outreach"]')){
+      const b=document.createElement('button');b.dataset.screen='outreach';b.innerHTML='✉ Tiếp cận trường';b.onclick=function(){showScreen('outreach');};
+      const weekly=side.querySelector('[data-screen="weekly"]');side.insertBefore(b,weekly||null);
+    }
+    const bottom=document.querySelector('.bottom-nav');
+    if(bottom&&!bottom.querySelector('[data-outreach-nav]')){
+      const b=document.createElement('button');b.setAttribute('data-outreach-nav','1');b.innerHTML='✉<span>Tiếp cận</span>';b.onclick=function(){showScreen('outreach');};bottom.appendChild(b);
+    }
+  }
+
+  const previousShowScreen=window.showScreen;
+  window.showScreen=function(name){
+    if(name!=='outreach') return previousShowScreen(name);
+    installOutreachNav();
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+    const el=document.getElementById('screen-outreach');if(el)el.classList.add('active');
+    document.querySelectorAll('.sidebar button').forEach(b=>b.classList.toggle('active',b.dataset.screen===name));
+    loadOutreach('ACTION');
+  };
+
+  document.addEventListener('DOMContentLoaded',installOutreachNav);
+
+  window.loadOutreach=function(group){
+    group=group||'ACTION';
+    oCall('list',{},function(rows){
+      OUTREACH_ROWS=rows||[];
+      oCall('summary',{},function(summary){renderOutreach(group,summary);});
+    });
+  };
+
+  function renderOutreach(group,summary){
+    const host=document.getElementById('screen-outreach');if(!host)return;
+    const rows=filterGroup(OUTREACH_ROWS,group);
+    host.innerHTML=`<div class="page-head"><div><span class="chip">Công việc phát triển trường</span><h1>Tiếp cận trường</h1><p>Biến danh sách ưu tiên thành việc phải làm, thư phải gửi và lịch theo dõi cụ thể.</p></div><button class="btn ghost" onclick="syncOutreach()">↻ Đồng bộ danh sách</button></div>
+    <div class="grid4">${metric('Cần xử lý',summary.can_lam_hom_nay,'Xác minh / gửi / tiếp cận')}${metric('Cần gửi hồ sơ',summary.can_gui,'Đã đủ email để gửi')}${metric('Chờ phản hồi',summary.dang_cho_phan_hoi,'Đã gửi, cần theo dõi')}${metric('Đã có phản hồi',summary.da_phan_hoi,'Có tín hiệu từ trường','green')}</div>
+    <div class="tabs" style="margin-top:14px">${tab('ACTION','Cần làm',group)}${tab('WAIT','Chờ phản hồi',group)}${tab('RESPONSE','Đã phản hồi',group)}${tab('WATCH','Theo dõi',group)}${tab('ALL','Tất cả',group)}</div>
+    <div id="outreachCompose"></div>
+    <div class="card" style="margin-top:12px">${rows.length?rows.map(outreachCard).join(''):'<div class="muted small">Không có trường trong nhóm này.</div>'}</div>`;
+  }
+
+  function tab(k,l,current){return `<button class="${k===current?'active':''}" onclick="loadOutreach('${k}')">${l}</button>`;}
+  function filterGroup(rows,g){
+    if(g==='ALL')return rows;
+    if(g==='WAIT')return rows.filter(r=>r.trang_thai_thuc_hien==='DANG_CHO_PHAN_HOI'||r.trang_thai_thuc_hien==='DANG_SOAN');
+    if(g==='RESPONSE')return rows.filter(r=>['DA_PHAN_HOI','DA_HEN_TRAO_DOI','DA_TAO_CO_HOI'].includes(r.trang_thai_thuc_hien));
+    if(g==='WATCH')return rows.filter(r=>['THEO_DOI','CHAM_SOC_ACCOUNT','TAM_DUNG'].includes(r.trang_thai_thuc_hien));
+    return rows.filter(r=>['CAN_GUI','CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC'].includes(r.trang_thai_thuc_hien));
+  }
+
+  function outreachCard(r){
+    const email=r.email_truong?`<span class="chip">${esc(r.email_truong)}</span>`:'<span class="chip" style="background:#fff3cd">Chưa có email xác minh</span>';
+    const buttons=[];
+    if(['CAN_GUI','DANG_SOAN','TIEP_CAN_CHIEN_LUOC'].includes(r.trang_thai_thuc_hien)&&r.email_truong)buttons.push(`<button class="btn" onclick="prepareOutreachEmail('${esc(r.outreach_id)}')">Soạn bằng Gmail của tôi</button>`);
+    if(['CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC'].includes(r.trang_thai_thuc_hien))buttons.push(`<button class="btn ghost" onclick="verifyOutreachContact('${esc(r.outreach_id)}')">Cập nhật email/contact</button>`);
+    if(r.trang_thai_thuc_hien==='DANG_CHO_PHAN_HOI')buttons.push(`<button class="btn secondary" onclick="recordOutreachResponse('${esc(r.outreach_id)}')">Ghi nhận phản hồi</button>`);
+    if(['DA_PHAN_HOI','DA_HEN_TRAO_DOI'].includes(r.trang_thai_thuc_hien))buttons.push(`<button class="btn" onclick="createOutreachOpportunity('${esc(r.outreach_id)}')">Tạo cơ hội</button>`);
+    return `<div class="account" style="align-items:flex-start"><div style="min-width:0"><div><b>${esc(r.ten_truong)}</b> <span class="chip">${esc(priorityLabel(r.uu_tien))}</span> <span class="chip">${esc(waveLabel(r.dot_trien_khai))}</span></div><div class="task-sub" style="margin-top:5px">${esc(r.tinh_thanh)} · ${esc(statusOutreachLabel(r.trang_thai_thuc_hien))}</div><div class="task-sub" style="margin-top:5px"><b>Quyết định:</b> ${esc(decisionLabel(r.quyet_dinh))}</div><div class="task-sub" style="margin-top:5px"><b>Việc tiếp theo:</b> ${esc(r.hanh_dong_de_xuat||'Chưa có')}</div><div class="task-sub" style="margin-top:5px"><b>Địa chỉ:</b> ${esc(r.dia_chi_thu_tin||'Chưa xác minh')}</div><div style="margin-top:7px">${email}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${buttons.join('')}</div></div>`;
+  }
+
+  window.prepareOutreachEmail=function(id){
+    oCall('prepareEmail',{outreach_id:id},function(r){
+      CURRENT_EMAIL=r;
+      const host=document.getElementById('outreachCompose');
+      host.innerHTML=`<div class="card" style="margin-top:14px;border:2px solid var(--blue)"><div class="section-title"><h2>Soạn thư – ${esc(r.school)}</h2><button class="btn ghost" onclick="closeOutreachCompose()">Đóng</button></div><div class="form-grid"><div class="field"><label>Gửi từ</label><input class="input" value="${esc(r.from_email)}" disabled></div><div class="field"><label>Gửi tới</label><input id="oe_to" class="input" value="${esc(r.to_email)}"></div><div class="field"><label>CC bắt buộc</label><input id="oe_cc" class="input" value="${esc(r.cc_email)}" disabled></div><div class="field span2"><label>Tiêu đề</label><input id="oe_subject" class="input" value="${esc(r.subject)}"></div><div class="field span2"><label>Nội dung – có thể chỉnh trước khi mở Gmail</label><textarea id="oe_body" class="input" style="min-height:260px">${esc(r.body)}</textarea></div></div><div class="hint" style="margin-top:10px"><b>Hồ sơ đính kèm:</b> ${esc(r.attachment_note)}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="openMyGmail()">Mở Gmail của tôi</button><button class="btn secondary" onclick="confirmOutreachSent()">Tôi đã gửi thư</button></div></div>`;
+      host.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  };
+
+  window.openMyGmail=function(){
+    if(!CURRENT_EMAIL)return;
+    const to=val('oe_to'),cc=CURRENT_EMAIL.cc_email,subject=val('oe_subject'),body=val('oe_body');
+    const url='https://mail.google.com/mail/?authuser='+encodeURIComponent(CURRENT_EMAIL.from_email)+'&view=cm&fs=1&to='+encodeURIComponent(to)+'&cc='+encodeURIComponent(cc)+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+    window.open(url,'_blank','noopener');
+  };
+  window.confirmOutreachSent=function(){if(!CURRENT_EMAIL)return;oCall('markSent',{outreach_id:CURRENT_EMAIL.outreach_id,followup_days:3},function(r){toast(r.message||'Đã ghi nhận');CURRENT_EMAIL=null;loadOutreach('WAIT');});};
+  window.closeOutreachCompose=function(){CURRENT_EMAIL=null;const h=document.getElementById('outreachCompose');if(h)h.innerHTML='';};
+
+  window.verifyOutreachContact=function(id){
+    const row=OUTREACH_ROWS.find(x=>x.outreach_id===id);if(!row)return;
+    const email=prompt('Email đã xác minh của trường:',row.email_truong||'');if(email===null)return;
+    const phone=prompt('Điện thoại / đầu mối (có thể giữ nguyên):',row.dien_thoai_dau_moi||'');if(phone===null)return;
+    oCall('updateContact',{outreach_id:id,email_truong:email,dien_thoai_dau_moi:phone},function(r){toast(r.message||'Đã cập nhật');loadOutreach('ACTION');});
+  };
+
+  window.recordOutreachResponse=function(id){
+    const result=prompt('Trường phản hồi gì? Hãy ghi nội dung cụ thể:','');if(!result)return;
+    const meeting=confirm('Đã có lịch/đồng ý trao đổi tiếp?');
+    oCall('updateStatus',{outreach_id:id,status:meeting?'DA_HEN_TRAO_DOI':'DA_PHAN_HOI',result:result},function(r){toast(r.message||'Đã lưu');loadOutreach('RESPONSE');});
+  };
+
+  window.createOutreachOpportunity=function(id){
+    const value=prompt('Giá trị cơ hội dự kiến (có thể để 0):','0');if(value===null)return;
+    oCall('createOpportunity',{outreach_id:id,gia_tri_du_kien:value},function(r){toast(r.message||'Đã tạo cơ hội');loadOutreach('RESPONSE');});
+  };
+
+  window.syncOutreach=function(){oCall('sync',{},function(r){toast(r.message+' Thêm '+r.created+', cập nhật '+r.updated+'.');loadOutreach('ACTION');});};
+
+  function priorityLabel(v){const s=String(v||'');if(s.includes('P1+'))return'Ưu tiên rất cao';if(s.includes('P1'))return'Ưu tiên cao';if(s.includes('P2'))return'Ưu tiên vừa';if(s.includes('P3'))return'Theo dõi';return s;}
+  function waveLabel(v){return ({WAVE_0:'Đợt 0 · Xác minh dữ liệu',WAVE_A:'Đợt A · Gửi ngay',WAVE_B:'Đợt B · Xác minh rồi gửi',WAVE_C:'Đợt C · Tiếp cận chiến lược',WAVE_D:'Đợt D · Theo dõi'})[v]||v||'';}
+  function statusOutreachLabel(v){return ({CAN_GUI:'Cần gửi hồ sơ',CAN_XAC_MINH:'Cần xác minh rồi gửi',CAN_XAC_MINH_DU_LIEU:'Cần xác minh dữ liệu',TIEP_CAN_CHIEN_LUOC:'Tiếp cận chiến lược',DANG_SOAN:'Đang chuẩn bị thư',DANG_CHO_PHAN_HOI:'Đang chờ phản hồi',DA_PHAN_HOI:'Đã có phản hồi',DA_HEN_TRAO_DOI:'Đã hẹn trao đổi',DA_TAO_CO_HOI:'Đã tạo cơ hội',TAM_DUNG:'Tạm dừng',THEO_DOI:'Theo dõi',CHAM_SOC_ACCOUNT:'Trường đang hợp tác – chăm sóc'})[v]||v||'';}
+  function decisionLabel(v){return String(v||'').replace(/RE-ENTRY/gi,'Tiếp cận lại').replace(/RE-ACTIVATE/gi,'Kích hoạt lại').replace(/HOLD/gi,'Tạm dừng').replace(/WATCHLIST/gi,'Theo dõi').replace(/ACCOUNT HIỆN HỮU/gi,'Trường đang hợp tác').replace(/INTRO/gi,'thư giới thiệu').replace(/PARTNERSHIP/gi,'hợp tác chiến lược');}
+})();
+</script>
