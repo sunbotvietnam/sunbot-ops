@@ -39,9 +39,25 @@ function apiSessionOutreachContact(sessionToken, payload) {
     patch.work_id = workId;
   }
   updateById_(OUTREACH.SHEET,'outreach_id',row.outreach_id,patch);
+
   if (row.account_id && phone) {
     try { updateById_('TRUONG','account_id',row.account_id,{dien_thoai:phone,updated_at:now_()}); } catch (e) {}
   }
+
+  // Ghi ngược contact đã xác minh về bảng outreach nguồn để lần sync sau không kéo dữ liệu cũ trở lại.
+  try {
+    if (row.source_sheet && row.source_row) {
+      const src = SpreadsheetApp.openById(OUTREACH.SOURCE_SPREADSHEET_ID).getSheetByName(String(row.source_sheet));
+      if (src) {
+        const sourceRow = Number(row.source_row);
+        if (email) src.getRange(sourceRow, 8).setValue(email);
+        if (phone) src.getRange(sourceRow, 9).setValue(phone);
+      }
+    }
+  } catch (syncErr) {
+    audit_(user,'CONTACT_SOURCE_SYNC_WARNING',OUTREACH.SHEET,row.outreach_id,{error:String(syncErr.message||syncErr)});
+  }
+
   audit_(user,'VERIFY_CONTACT',OUTREACH.SHEET,row.outreach_id,{email:email,phone:phone,status:patch.trang_thai_thuc_hien||row.trang_thai_thuc_hien});
   return {ok:true,message:email?'Đã xác minh contact. Trường đã sẵn sàng để soạn thư.':'Đã cập nhật contact; vẫn cần email xác minh trước khi gửi.',status:patch.trang_thai_thuc_hien||row.trang_thai_thuc_hien};
 }
