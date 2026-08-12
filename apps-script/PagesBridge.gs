@@ -22,6 +22,8 @@ function handlePagesBridge_(e) {
       result = verifyOtp(payload.email || '', payload.code || '');
     } else if (mode === 'fast') {
       result = apiSessionFast(token, String(p.subaction || ''), payload);
+    } else if (mode === 'journey') {
+      result = apiSessionJourney(token, String(p.subaction || ''), payload);
     } else if (mode === 'core') {
       result = apiSession(token, String(p.subaction || ''), payload);
     } else if (mode === 'commercial') {
