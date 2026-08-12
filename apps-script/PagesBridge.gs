@@ -28,6 +28,8 @@ function handlePagesBridge_(e) {
       result = apiSessionCeo(token, String(p.subaction || ''), payload);
     } else if (mode === 'outreach') {
       result = apiSessionOutreach(token, String(p.subaction || ''), payload);
+    } else if (mode === 'outreachWorkspace') {
+      result = apiSessionOutreachWorkspace(token, String(p.subaction || ''), payload);
     } else if (mode === 'contact') {
       result = apiSessionOutreachContact(token, payload);
     } else {
@@ -59,9 +61,6 @@ function pagesBridgeHtml_(requestId, result, error) {
     error: error || ''
   };
   const json = JSON.stringify(message).replace(/<\//g, '<\\/');
-  // Apps Script HTML Service renders inside Google's own sandbox iframe.
-  // window.parent points to Google's wrapper, not the GitHub Pages app.
-  // postMessage to window.top so the response reaches the actual Pages window.
   const html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
     '<script>(function(){try{window.top.postMessage(' + json + ', ' + JSON.stringify(SUNBOT_PAGES_ORIGIN) + ');}catch(e){window.parent.postMessage(' + json + ', "*");}})();<\/script>' +
     '</body></html>';
