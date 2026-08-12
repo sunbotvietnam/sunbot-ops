@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "principles": [
     "Không hard-code tên nhân sự",
     "Một nhân sự có thể có nhiều vai trò",
@@ -9,13 +9,16 @@
     "Signal, Fact và Insight là ba lớp dữ liệu khác nhau",
     "KPI là dữ liệu dẫn xuất, không nhập tay",
     "Mỗi dữ liệu quan trọng chỉ có một nguồn canonical",
-    "AI không được tự thay thế raw truth; mọi insight phải truy được về source_id"
+    "AI không được tự thay thế raw truth; mọi insight phải truy được về source_id",
+    "Danh sách outreach là nguồn kế hoạch; TIEP_CAN_TRUONG là nguồn sự thật về thực thi gửi thư, phản hồi và follow-up"
   ],
   "enums": {
     "account_status": ["TARGET","CONTACTED","ACTIVE","CUSTOMER","HOLD","LOST","DORMANT"],
     "opportunity_stage": ["TARGET","CONTACTED","DISCOVERY","PROPOSAL","NEGOTIATION","WON","LOST","HOLD"],
     "work_status": ["OPEN","IN_PROGRESS","DONE","CANCELLED","OVERDUE"],
     "priority": ["P1","P2","P3"],
+    "outreach_wave": ["WAVE_0","WAVE_A","WAVE_B","WAVE_C","WAVE_D"],
+    "outreach_status": ["CAN_GUI","CAN_XAC_MINH","CAN_XAC_MINH_DU_LIEU","TIEP_CAN_CHIEN_LUOC","DANG_SOAN","DANG_CHO_PHAN_HOI","DA_PHAN_HOI","DA_HEN_TRAO_DOI","DA_TAO_CO_HOI","TAM_DUNG","THEO_DOI","CHAM_SOC_ACCOUNT"],
     "market_signal_source_type": ["TAN_MAT_THAY","NGUOI_TRONG_TRUONG_NOI","THAY_TREN_MANG","TAI_LIEU_ANH_DUOC_GUI","NGHE_KE","KHAC"],
     "market_signal_review_status": ["CHUA_REVIEW","DU_CAN_CU","CAN_XAC_MINH_THEM","KHONG_DUNG"],
     "confidence": ["A","B","C","D"],
@@ -29,6 +32,7 @@
     "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","updated_at"],
     "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","trang_thai","han_hoan_thanh","created_at","updated_at"],
     "CAP_NHAT": ["update_id","thoi_gian","user_id","ket_qua","viec_tiep_theo","han"],
+    "TIEP_CAN_TRUONG": ["outreach_id","source_key","account_id","owner_user_id","ten_truong","dot_trien_khai","trang_thai_thuc_hien","updated_at"],
     "THI_TRUONG_TIN_HIEU": ["signal_id","captured_at","user_id","raw_signal","source_type","review_status"],
     "DOI_THU": ["competitor_id","ten_don_vi","actor_type","radar_priority","last_verified_at"],
     "CHAO_BAN_THI_TRUONG": ["offer_id","competitor_id","ten_offer","delivery_model","verified_at","confidence"]
@@ -42,6 +46,7 @@
     "CO_HOI": ["opp_id","account_id","owner_user_id","ten_co_hoi","san_pham","trang_thai","gia_tri_du_kien","xac_suat","nguon","viec_tiep_theo","han_viec_tiep_theo","expected_cash_date","lost_reason","updated_at"],
     "CONG_VIEC": ["work_id","ten_cong_viec","owner_user_id","account_id","opp_id","nhom_cong_viec","muc_uu_tien","trang_thai","han_hoan_thanh","hanh_dong_tiep","ngay_hanh_dong_tiep","can_ceo","noi_dung_can_ceo","ngay_hoan_thanh","created_at","updated_at"],
     "CAP_NHAT": ["update_id","thoi_gian","user_id","account_id","opp_id","work_id","loai_cap_nhat","trang_thai_truoc","trang_thai_moi","ket_qua","viec_tiep_theo","han","muc_do","can_ceo","noi_dung_can_ceo","bang_chung_url"],
+    "TIEP_CAN_TRUONG": ["outreach_id","source_key","source_sheet","source_row","account_id","owner_user_id","tinh_thanh","nhom","uu_tien","quyet_dinh","ten_truong","loai_hinh","quan_he_sunbot","dia_chi_thu_tin","email_truong","dien_thoai_dau_moi","tinh_hinh_steam","cap_nhat_moi","thong_diep_de_xuat","hanh_dong_de_xuat","tin_cay_contact","nguon_xac_minh","dot_trien_khai","trang_thai_thuc_hien","ngay_gui","email_nguoi_gui","ngay_theo_doi_lai","ket_qua_phan_hoi","work_id","updated_at"],
     "VAN_DE": ["issue_id","created_at","created_by_user_id","nhom_van_de","account_id","mo_ta","muc_do","can_ceo","de_nghi_ceo","owner_user_id","han_xu_ly","trang_thai","ket_qua_xu_ly","updated_at"],
     "CONG_NO": ["receivable_id","account_id","owner_user_id","so_tien","han_thanh_toan","ngay_du_kien_ve","trang_thai","ho_so_con_thieu","ghi_chu","updated_at"],
     "THI_TRUONG_TIN_HIEU": ["signal_id","captured_at","user_id","account_id","competitor_id","offer_id","raw_signal","source_type","source_person","evidence_url","needs_verification","review_status","verified_fact","confidence","reviewed_by_user_id","reviewed_at","created_at","updated_at"],
@@ -56,6 +61,7 @@
     "opportunity_pipeline": "CO_HOI",
     "future_action_and_deadline": "CONG_VIEC",
     "completed_interaction_history": "CAP_NHAT",
+    "school_outreach_execution": "TIEP_CAN_TRUONG",
     "receivable_and_cash_truth": "CONG_NO",
     "raw_market_intelligence": "THI_TRUONG_TIN_HIEU",
     "competitor_baseline": "DOI_THU",
@@ -72,11 +78,14 @@
     "expected_cash": {"sources":["CO_HOI","CONG_NO"]},
     "cash_realized": {"sources":["CONG_NO"]},
     "field_intelligence_contribution": {"sources":["THI_TRUONG_TIN_HIEU"]},
+    "school_outreach_execution": {"sources":["TIEP_CAN_TRUONG","CONG_VIEC","CAP_NHAT"]},
+    "school_outreach_conversion": {"sources":["TIEP_CAN_TRUONG","CO_HOI"]},
     "data_hygiene": {"sources":["TRUONG","CO_HOI","CONG_VIEC"]}
   },
   "rules": {
     "valid_update": "CAP_NHAT chỉ được tính là work evidence hợp lệ khi có ket_qua, viec_tiep_theo và han.",
     "weekly_report": "BAO_CAO_TUAN không phải nguồn KPI; phần định lượng phải được hệ thống dẫn xuất từ dữ liệu canonical.",
+    "outreach": "Danh sách tỉnh quyết định Priority/Wave; TIEP_CAN_TRUONG quản lý execution. Email phải gửi từ tài khoản Google của nhân viên, CC sunbotvietnam@gmail.com, sau khi xác nhận gửi phải tạo follow-up trong CONG_VIEC.",
     "market_signal": "Sale chỉ nhập raw_signal/source/evidence; reviewer mới được nhập verified_fact/confidence.",
     "ai_feed": "AI_FEED chỉ tham chiếu dữ liệu đã chuẩn hóa hoặc tín hiệu chưa xác minh nhưng phải giữ source_type/source_id.",
     "next_action": "CONG_VIEC là nguồn canonical cho hành động tương lai; các trường next-action trong TRUONG/CO_HOI là cache tương thích V1."
