@@ -1,0 +1,14 @@
+<script>
+(function(){
+  window.verifyOutreachContact=function(id){
+    const rows=typeof OUTREACH_ROWS!=='undefined'?OUTREACH_ROWS:[];
+    const row=rows.find?rows.find(x=>x.outreach_id===id):null;
+    const currentEmail=row&&row.email_truong?row.email_truong:'';
+    const currentPhone=row&&row.dien_thoai_dau_moi?row.dien_thoai_dau_moi:'';
+    const email=prompt('Email đã xác minh của trường:',currentEmail);if(email===null)return;
+    const phone=prompt('Điện thoại / đầu mối (có thể giữ nguyên):',currentPhone);if(phone===null)return;
+    setLoading(true);
+    google.script.run.withSuccessHandler(function(r){setLoading(false);toast(r.message||'Đã cập nhật');loadOutreach('ACTION');}).withFailureHandler(function(err){setLoading(false);showError(err);}).apiSessionOutreachContact(ID_TOKEN,{outreach_id:id,email_truong:email,dien_thoai_dau_moi:phone});
+  };
+})();
+</script>
