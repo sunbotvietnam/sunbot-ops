@@ -1,0 +1,91 @@
+function apiSessionOutreachCreate(sessionToken, payload) {
+  const user = authenticateSession_(sessionToken);
+  ensureOutreachRuntimeSchema_();
+  payload = payload || {};
+  required_(payload, ['ten_truong','tinh_thanh']);
+
+  const name = String(payload.ten_truong || '').trim();
+  const province = String(payload.tinh_thanh || '').trim();
+  if (name.length < 3) throw new Error('Tên trường quá ngắn.');
+  if (province.length < 2) throw new Error('Hãy nhập tỉnh/thành.');
+
+  const email = String(payload.email_truong || '').trim().toLowerCase();
+  const phone = String(payload.dien_thoai_dau_moi || '').trim();
+  if (email && !isPlainEmail_(email)) throw new Error('Email trường không hợp lệ.');
+
+  const duplicate = getAll_(OUTREACH.SHEET).find(function(r){
+    return normalizeMatch_(r.ten_truong) === normalizeMatch_(name) && normalizeMatch_(r.tinh_thanh) === normalizeMatch_(province);
+  });
+  if (duplicate) throw new Error('Trường này đã có trong danh sách tiếp cận. Hãy mở hồ sơ hiện có thay vì tạo mới.');
+
+  let account = getAll_('TRUONG').find(function(a){
+    return normalizeMatch_(a.ten_don_vi) === normalizeMatch_(name) && normalizeMatch_(a.tinh_thanh) === normalizeMatch_(province);
+  });
+  let accountId = account ? String(account.account_id) : '';
+  if (!accountId) {
+    accountId = id_('ACC');
+    append_('TRUONG', {
+      account_id:accountId,
+      ten_don_vi:name,
+      loai_doi_tuong:'Chưa xác định',
+      tinh_thanh:province,
+      quan_huyen:'',
+      khoi_truong:'Mầm non',
+      owner_user_id:user.user_id,
+      trang_thai:'TARGET',
+      mo_hinh_hien_tai:'',
+      mo_hinh_tiem_nang:'',
+      nguoi_quyet_dinh:'',
+      dien_thoai:phone,
+      viec_tiep_theo:email ? 'Soạn và gửi hồ sơ giới thiệu Sunbot.' : 'Xác minh email/đầu mối của trường.',
+      han_viec_tiep_theo:'',
+      cong_no_hien_tai:0,
+      tai_san:'',
+      updated_at:now_()
+    });
+  }
+
+  const outreachId = id_('OUT');
+  const status = email ? 'CAN_GUI' : 'CAN_XAC_MINH';
+  const wave = email ? 'WAVE_A' : 'WAVE_B';
+  const action = email ? 'Soạn và gửi hồ sơ tới ' + name : 'Xác minh email/đầu mối trước khi gửi – ' + name;
+  const row = {
+    nhom:'MỚI THÊM',
+    uu_tien:'P2',
+    quyet_dinh:'GỬI THƯ NGỎ/IP05',
+    ten_truong:name,
+    loai_hinh:'Chưa xác định',
+    quan_he_sunbot:'Chưa có',
+    dia_chi_thu_tin:'',
+    email_truong:email,
+    dien_thoai_dau_moi:phone,
+    tinh_hinh_steam:'',
+    cap_nhat_moi:'',
+    thong_diep_de_xuat:'',
+    hanh_dong_de_xuat:action,
+    tin_cay_contact:email ? 'B' : 'C',
+    nguon_xac_minh:'Người dùng thêm trực tiếp trong SUNBOT OPS',
+    dot_trien_khai:wave
+  };
+  const task = createInitialOutreachTask_(user.user_id, accountId, outreachId, row, status);
+  append_(OUTREACH.SHEET, {
+    outreach_id:outreachId,
+    source_key:'MANUAL:' + outreachId,
+    source_sheet:'MANUAL',
+    source_row:'',
+    account_id:accountId,
+    owner_user_id:user.user_id,
+    tinh_thanh:province,
+    ...row,
+    trang_thai_thuc_hien:status,
+    ngay_gui:'',
+    email_nguoi_gui:'',
+    ngay_theo_doi_lai:'',
+    ket_qua_phan_hoi:'',
+    work_id:task ? task.work_id : '',
+    updated_at:now_()
+  });
+
+  audit_(user,'CREATE_MANUAL_OUTREACH',OUTREACH.SHEET,outreachId,{account_id:accountId,province:province,status:status});
+  return {ok:true,outreach_id:outreachId,account_id:accountId,status:status,message:email?'Đã thêm trường và tạo việc gửi hồ sơ.':'Đã thêm trường và tạo việc xác minh contact.'};
+}
