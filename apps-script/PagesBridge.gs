@@ -49,11 +49,12 @@ function pagesPinLogin_(email, pin) {
   const normalized = normalizeEmail_(email);
   const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalized);
   if (!person || !isActiveStatus_(person.trang_thai)) throw new Error('Email hoặc mã PIN không đúng.');
-  if (!/^\d{4}$/.test(String(pin || '').trim())) throw new Error('Mã PIN phải gồm 4 chữ số.');
-  if (String(person.user_id) === 'USR-TUONGVAN1906') {
-    return loginAdminPassword(PASSWORD_AUTH.ADMIN_USERNAME, String(pin).trim());
-  }
-  return loginPassword_(String(person.user_id), String(pin).trim());
+  const value = String(pin || '').trim();
+  const isCeo = String(person.user_id) === 'USR-TUONGVAN1906';
+  if (isCeo && !/^\d{6}$/.test(value)) throw new Error('PIN quản trị phải gồm 6 chữ số.');
+  if (!isCeo && !/^\d{4}$/.test(value)) throw new Error('Mã PIN phải gồm 4 chữ số.');
+  if (isCeo) return loginAdminPassword(PASSWORD_AUTH.ADMIN_USERNAME, value);
+  return loginPassword_(String(person.user_id), value);
 }
 
 function pagesBridgeHtml_(requestId, result, error) {

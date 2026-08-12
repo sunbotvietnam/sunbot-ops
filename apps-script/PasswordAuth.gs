@@ -1,6 +1,6 @@
 const PASSWORD_AUTH = Object.freeze({
   ADMIN_USERNAME: 'admin',
-  ADMIN_PASSWORD_SHA256: 'ab9a353f8b7258d39920036df10735666222ece476228cf60a64123a4a7b8d6c',
+  ADMIN_PASSWORD_SHA256: 'a337cd1abcf35b0ebabeac85425fc792b5c3bb7a1955da11335cab46d47090fe',
   ADMIN_SALT: 'sunbot-admin-v1:',
   STAFF_SALT: 'sunbot-staff-v1:',
   STAFF_PIN_SHA256: Object.freeze({
@@ -40,7 +40,7 @@ function loginPassword_(username, password) {
     if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) { cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS); cache.remove(failKey); }
     else cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
     logPasswordAuth_('PASSWORD_LOGIN_FAILED', normalizedUser || rawUser, {attempts: failures});
-    throw new Error('ID đăng nhập hoặc mật khẩu/PIN không đúng.');
+    throw new Error('Email hoặc mã PIN không đúng.');
   }
 
   cache.remove(failKey); cache.remove(lockKey);
