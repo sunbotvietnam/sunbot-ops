@@ -30,6 +30,8 @@ function handlePagesBridge_(e) {
       result = apiSessionOutreach(token, String(p.subaction || ''), payload);
     } else if (mode === 'outreachWorkspace') {
       result = apiSessionOutreachWorkspace(token, String(p.subaction || ''), payload);
+    } else if (mode === 'outreachCreate') {
+      result = apiSessionOutreachCreate(token, payload);
     } else if (mode === 'contact') {
       result = apiSessionOutreachContact(token, payload);
     } else {
