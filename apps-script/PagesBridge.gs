@@ -14,7 +14,9 @@ function handlePagesBridge_(e) {
 
   try {
     let result;
-    if (mode === 'requestOtp') {
+    if (mode === 'pinLogin') {
+      result = pagesPinLogin_(payload.email || '', payload.pin || '');
+    } else if (mode === 'requestOtp') {
       result = requestOtp(payload.email || '');
     } else if (mode === 'verifyOtp') {
       result = verifyOtp(payload.email || '', payload.code || '');
@@ -35,6 +37,17 @@ function handlePagesBridge_(e) {
   } catch (err) {
     return pagesBridgeHtml_(requestId, null, safeErrorMessage_(err));
   }
+}
+
+function pagesPinLogin_(email, pin) {
+  const normalized = normalizeEmail_(email);
+  const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalized);
+  if (!person || !isActiveStatus_(person.trang_thai)) throw new Error('Email hoặc mã PIN không đúng.');
+  if (!/^\d{4}$/.test(String(pin || '').trim())) throw new Error('Mã PIN phải gồm 4 chữ số.');
+  if (String(person.user_id) === 'USR-TUONGVAN1906') {
+    return loginAdminPassword(PASSWORD_AUTH.ADMIN_USERNAME, String(pin).trim());
+  }
+  return loginPassword_(String(person.user_id), String(pin).trim());
 }
 
 function pagesBridgeHtml_(requestId, result, error) {
