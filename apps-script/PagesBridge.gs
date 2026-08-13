@@ -10,6 +10,7 @@ function handlePagesBridge_(e){
     let result;
     if(mode==='pinLogin') result=loginPinByEmail_(payload.email||'',payload.pin||'');
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
+    else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
     else if(mode==='journey') result=apiSessionJourney(token,String(p.subaction||''),payload);
     else if(mode==='engagement') result=apiSessionEngagement(token,String(p.subaction||''),payload);
     else if(mode==='timeline') result=apiSessionTimeline(token,String(p.subaction||''),payload);
@@ -17,7 +18,7 @@ function handlePagesBridge_(e){
     else if(mode==='commercial') result=apiSessionCommercial(token,String(p.subaction||''),payload);
     else if(mode==='ceo') result=apiSessionCeo(token,String(p.subaction||''),payload);
     else if(mode==='outreach') result=apiSessionOutreach(token,String(p.subaction||''),payload);
-    else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspace(token,String(p.subaction||''),payload);
+    else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspaceSafe(token,String(p.subaction||''),payload);
     else if(mode==='outreachCreate') result=apiSessionOutreachCreate(token,payload);
     else if(mode==='contact') result=apiSessionOutreachContact(token,payload);
     else throw new Error('Tác vụ GitHub Pages không hợp lệ.');
