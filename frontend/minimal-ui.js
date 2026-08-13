@@ -1,6 +1,7 @@
 (function(){
   state.search=state.search||'';
   state.owner=state.owner||'ALL';
+  state.pipelineSpecial=state.pipelineSpecial||'';
 
   function canTrackProfiles(){
     const can=(state.boot&&state.boot.can)||{};
@@ -34,6 +35,7 @@
     if(state.filter!=='ALL')rows=rows.filter(r=>r.trang_thai_thuc_hien===state.filter);
     if(state.province!=='ALL')rows=rows.filter(r=>r.tinh_thanh===state.province);
     if(isCeoView()&&state.owner!=='ALL')rows=rows.filter(r=>String(r.owner_user_id||'')===state.owner);
+    rows=applySpecialRows_(rows,state.pipelineSpecial);
     const provinces=[...new Set((state.rows||[]).map(r=>r.tinh_thanh).filter(Boolean))].sort();
     const owners=(s.by_owner||[]).filter(x=>x.user_id);
     const ceoSummary=isCeoView()?renderCeoSummary(s):'';
@@ -42,7 +44,7 @@
     el('content').innerHTML=`<section class="hero"><div><h1>Việc với trường</h1><p>${Number(s.can_lam_hom_nay||0)} trường cần xử lý · ${Number(s.dang_cho_phan_hoi||0)} đang chờ phản hồi${Number(s.overdue||0)?' · '+Number(s.overdue)+' quá hạn':''}</p></div><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></section>${ceoSummary}${tracking}<section class="filters minimal-filters ${isCeoView()?'ceo-filters':''}"><input id="schoolSearch" class="input" placeholder="Tìm trường…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${v}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(p=>`<option ${state.province===p?'selected':''}>${esc(p)}</option>`).join('')}</select>${ownerFilter}</section><section class="cards minimal-cards">${rows.length?rows.map(minimalCard).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
     el('addSchoolBtn').onclick=()=>{if(typeof window.openAddSchool==='function')window.openAddSchool();else toast('Chức năng thêm trường chưa sẵn sàng. Hãy tải lại trang.',true)};
     el('schoolSearch').oninput=e=>{state.search=e.target.value;renderOutreach()};
-    el('statusFilter').onchange=e=>{state.filter=e.target.value;renderOutreach()};
+    el('statusFilter').onchange=e=>{state.filter=e.target.value;state.pipelineSpecial='';renderOutreach()};
     el('provinceFilter').onchange=e=>{state.province=e.target.value;renderOutreach()};
     if(isCeoView())el('ownerFilter').onchange=e=>{state.owner=e.target.value;renderOutreach()};
     document.querySelectorAll('[data-pipeline-filter]').forEach(b=>b.onclick=()=>applyPipelineFilter(b.dataset.pipelineFilter));
@@ -54,33 +56,33 @@
   function renderCeoSummary(s){
     const p=s.pipeline||{};const owners=s.by_owner||[];
     const ownerPills=owners.filter(o=>o.user_id).map(o=>`<button class="owner-pill ${state.owner===o.user_id?'active':''}" data-owner-filter="${esc(o.user_id)}"><b>${esc(shortOwnerName(o.name))}</b><span>${Number(o.total||0)} trường${Number(o.overdue||0)?' · '+Number(o.overdue)+' quá hạn':''}</span></button>`).join('');
-    return `<section class="ceo-school-summary"><div class="ceo-kpis"><button data-pipeline-filter="ALL"><b>${Number(s.total||0)}</b><span>Tổng trường</span></button><button data-pipeline-filter="TODO"><b>${Number(p.todo||0)}</b><span>Cần xử lý</span></button><button data-pipeline-filter="OVERDUE"><b>${Number(s.overdue||0)}</b><span>Quá hạn</span></button><button data-pipeline-filter="WAITING"><b>${Number(p.waiting||0)}</b><span>Chờ phản hồi</span></button><button data-pipeline-filter="PROGRESS"><b>${Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button><button data-pipeline-filter="CUSTOMER"><b>${Number(p.customer||0)}</b><span>Đang hợp tác</span></button></div>${ownerPills?`<div class="owner-pills"><span class="owner-label">Phụ trách</span><button class="owner-pill ${state.owner==='ALL'?'active':''}" data-owner-filter="ALL"><b>Tất cả</b></button>${ownerPills}</div>`:''}</section>`;
+    return `<section class="ceo-school-summary"><div class="ceo-kpis"><button class="${!state.pipelineSpecial&&state.filter==='ALL'?'active':''}" data-pipeline-filter="ALL"><b>${Number(s.total||0)}</b><span>Tổng trường</span></button><button class="${state.pipelineSpecial==='TODO'?'active':''}" data-pipeline-filter="TODO"><b>${Number(p.todo||0)}</b><span>Cần xử lý</span></button><button class="${state.pipelineSpecial==='OVERDUE'?'active':''}" data-pipeline-filter="OVERDUE"><b>${Number(s.overdue||0)}</b><span>Quá hạn</span></button><button class="${state.filter==='DANG_CHO_PHAN_HOI'?'active':''}" data-pipeline-filter="WAITING"><b>${Number(p.waiting||0)}</b><span>Chờ phản hồi</span></button><button class="${state.pipelineSpecial==='PROGRESS'?'active':''}" data-pipeline-filter="PROGRESS"><b>${Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button><button class="${state.filter==='CHAM_SOC_ACCOUNT'?'active':''}" data-pipeline-filter="CUSTOMER"><b>${Number(p.customer||0)}</b><span>Đang hợp tác</span></button></div>${ownerPills?`<div class="owner-pills"><span class="owner-label">Phụ trách</span><button class="owner-pill ${state.owner==='ALL'?'active':''}" data-owner-filter="ALL"><b>Tất cả</b></button>${ownerPills}</div>`:''}</section>`;
   }
 
   function applyPipelineFilter(kind){
-    if(kind==='ALL'){state.filter='ALL';state.pipelineSpecial='';renderOutreach();return;}
-    state.pipelineSpecial=kind;
-    if(kind==='WAITING')state.filter='DANG_CHO_PHAN_HOI';
+    state.pipelineSpecial='';
+    if(kind==='ALL')state.filter='ALL';
+    else if(kind==='WAITING')state.filter='DANG_CHO_PHAN_HOI';
     else if(kind==='CUSTOMER')state.filter='CHAM_SOC_ACCOUNT';
-    else state.filter='ALL';
-    const original=(state.rows||[]);
-    if(kind==='TODO'){
-      const allowed=['CAN_GUI','CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC','DANG_SOAN'];
-      state.filter='ALL';
-      state.rowsViewOverride=original.filter(r=>allowed.includes(String(r.trang_thai_thuc_hien||'')));
-    }else if(kind==='PROGRESS'){
-      const allowed=['DA_PHAN_HOI','DA_HEN_TRAO_DOI','DA_TAO_CO_HOI'];
-      state.rowsViewOverride=original.filter(r=>allowed.includes(String(r.trang_thai_thuc_hien||'')));
-    }else if(kind==='OVERDUE'){
-      const today=new Date();today.setHours(0,0,0,0);
-      state.rowsViewOverride=original.filter(r=>{const d=parseLooseDate(r.ngay_theo_doi_lai);return d&&d<today&&!['CHAM_SOC_ACCOUNT','TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||''));});
-    }else state.rowsViewOverride=null;
-    renderOutreachWithOverride();
+    else {state.filter='ALL';state.pipelineSpecial=kind;}
+    renderOutreach();
   }
 
-  function renderOutreachWithOverride(){
-    if(!state.rowsViewOverride){renderOutreach();return;}
-    const original=state.rows;state.rows=state.rowsViewOverride;state.rowsViewOverride=null;renderOutreach();state.rows=original;
+  function applySpecialRows_(rows,kind){
+    if(!kind)return rows;
+    if(kind==='TODO'){
+      const allowed=['CAN_GUI','CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC','DANG_SOAN'];
+      return rows.filter(r=>allowed.includes(String(r.trang_thai_thuc_hien||'')));
+    }
+    if(kind==='PROGRESS'){
+      const allowed=['DA_PHAN_HOI','DA_HEN_TRAO_DOI','DA_TAO_CO_HOI'];
+      return rows.filter(r=>allowed.includes(String(r.trang_thai_thuc_hien||'')));
+    }
+    if(kind==='OVERDUE'){
+      const today=new Date();today.setHours(0,0,0,0);
+      return rows.filter(r=>{const d=parseLooseDate(r.ngay_theo_doi_lai);return d&&d<today&&!['CHAM_SOC_ACCOUNT','TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||''));});
+    }
+    return rows;
   }
 
   function parseLooseDate(v){
