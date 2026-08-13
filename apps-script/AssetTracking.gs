@@ -9,9 +9,11 @@ const ASSET_TRACKING = Object.freeze({
 });
 
 function ensureAssetTracking_(){
+  const cache=CacheService.getScriptCache();if(cache.get('asset-schema-v1')==='1')return;
   ensureTrackingSheet_(ASSET_TRACKING.LINKS,ASSET_TRACKING.LINK_HEADERS);
   ensureTrackingSheet_(ASSET_TRACKING.SENDS,ASSET_TRACKING.SEND_HEADERS);
   ensureTrackingSheet_(ASSET_TRACKING.EVENTS,ASSET_TRACKING.EVENT_HEADERS);
+  cache.put('asset-schema-v1','1',21600);
 }
 
 function ensureTrackingSheet_(name,headers){
