@@ -224,7 +224,7 @@ function outreachPrepareEmail_(user, p) {
     cc_email:OUTREACH.CC_EMAIL,
     subject:subject,
     body:body,
-    attachment_note:'Đính kèm theo hồ sơ phù hợp: Thư ngỏ + IP05; với trường chiến lược/re-entry có thể thêm Profile hoặc đề xuất riêng.',
+    attachment_note:'Email đã gắn Digital Profile mới theo loại hình trường. Tài liệu bổ sung chỉ gửi khi phù hợp với từng cơ hội.',
     school:row.ten_truong
   };
 }
@@ -338,12 +338,32 @@ function subjectForOutreach_(row) {
   return 'Đề xuất phối hợp triển khai chương trình Sunbot năm học 2026–2027 – ' + row.ten_truong;
 }
 
+function profileAudienceForOutreach_(row) {
+  const type = normalizeMatch_(row.loai_hinh || '');
+  if (/he thong|chuoi|system|nhieu co so|multi site/.test(type)) return 'system';
+  if (/tu thuc|tu nhan|private|quoc te|ngoai cong lap/.test(type)) return 'private';
+  return 'public';
+}
+
+function profileLinkForOutreach_(row) {
+  const audience = profileAudienceForOutreach_(row);
+  const params = [
+    'audience=' + encodeURIComponent(audience),
+    'guided=1',
+    'from=outreach'
+  ];
+  if (row.ten_truong) params.push('school=' + encodeURIComponent(String(row.ten_truong)));
+  if (row.outreach_id) params.push('source=' + encodeURIComponent(String(row.outreach_id)));
+  return 'https://sunbotvietnam.github.io/portal/profile-v2/?' + params.join('&');
+}
+
 function bodyForOutreach_(user,row) {
   const intro = 'Kính gửi Ban Giám hiệu ' + row.ten_truong + ',\n\nEm là ' + user.ho_ten + ', phụ trách phát triển thị trường Sunbot tại Công ty Cổ phần Công nghệ Giáo dục Kiro Việt Nam.';
-  const about = ' Sunbot là hệ thống phát triển tư duy tính toán và STEAM cho trẻ mầm non, với hai phân môn Lập trình tư duy cùng Sunbot và STEAM Sáng tạo cùng Sunbot; chương trình gắn với đào tạo giáo viên, minh chứng học tập và cơ chế đánh giá trẻ.';
+  const about = '\n\nSunbot là giải pháp giáo dục công nghệ dành cho trẻ mầm non, kết hợp chương trình, robot, học liệu, đào tạo giáo viên, tổ chức vận hành và hệ thống quan sát – đánh giá sự phát triển của trẻ.';
   const personal = row.thong_diep_de_xuat ? '\n\nQua tìm hiểu về nhà trường, em xin phép đề xuất hướng trao đổi phù hợp: ' + row.thong_diep_de_xuat : '';
-  const close = '\n\nEm xin gửi kèm Thư ngỏ và tài liệu IP05 để Ban Giám hiệu tham khảo. Nếu phù hợp, em mong được sắp xếp một buổi trao đổi ngắn để cùng nhà trường làm rõ nhu cầu và phương án triển khai trong năm học 2026–2027.\n\nTrân trọng,\n' + user.ho_ten + '\nSunbot – Kiro Việt Nam\nEmail: ' + user.email;
-  return intro + about + personal + close;
+  const profile = '\n\nEm xin gửi Ban Giám hiệu hồ sơ Sunbot để tiện tham khảo:\n' + profileLinkForOutreach_(row);
+  const close = '\n\nNếu phù hợp, em mong được sắp xếp một buổi trao đổi ngắn để cùng nhà trường làm rõ nhu cầu và lựa chọn phương án triển khai phù hợp trong năm học 2026–2027.\n\nTrân trọng,\n' + user.ho_ten + '\nSunbot – Kiro Việt Nam\nEmail: ' + user.email;
+  return intro + about + personal + profile + close;
 }
 
 function extractVerifiedEmail_(text) {
