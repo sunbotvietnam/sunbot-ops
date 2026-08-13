@@ -1,5 +1,10 @@
 (function(){
-  const SCENARIOS=[['NEW','Kết nối lần đầu'],['KNOWN','Kết nối lại'],['FORMER','Tái kết nối'],['CURRENT','Trao đổi năm học mới']];
+  const SCENARIOS=[
+    ['NEW','Chưa từng trao đổi với trường'],
+    ['KNOWN','Đã từng trao đổi, chưa triển khai'],
+    ['FORMER','Đã từng triển khai Sunbot'],
+    ['CURRENT','Đang triển khai Sunbot']
+  ];
   const ASSETS=[['PROFILE_PUBLIC','Hồ sơ số – Công lập'],['PROFILE_PRIVATE','Hồ sơ số – Tư thục']];
 
   function currentRowFromWorkspace(){
@@ -17,7 +22,7 @@
     if(!toolbar||document.getElementById('journeyComposeBtn'))return;
     const row=currentRowFromWorkspace();if(!row)return;
     const old=document.getElementById('wsEmail');if(old)old.style.display='none';
-    const btn=document.createElement('button');btn.id='journeyComposeBtn';btn.className='btn';btn.textContent='✉ Soạn lời kết nối';
+    const btn=document.createElement('button');btn.id='journeyComposeBtn';btn.className='btn';btn.textContent='✉ Soạn email';
     btn.onclick=()=>openComposer(row);
     toolbar.prepend(btn);
     const assetBtn=document.createElement('button');assetBtn.id='journeyAssetBtn';assetBtn.className='btn secondary';assetBtn.textContent='🔗 Gửi hồ sơ số';
@@ -29,7 +34,7 @@
     const host=document.getElementById('wsSubpanel');if(!host)return;
     host.innerHTML='<div class="subpanel open"><div class="subpanel-card compact"><div class="workspace-loading">Đang chuẩn bị nội dung phù hợp…</div></div></div>';
     try{
-      let p=await call('journey','prepare',{outreach_id:row.outreach_id});
+      const p=await call('journey','prepare',{outreach_id:row.outreach_id});
       render(p,assetOnly);
     }catch(e){host.innerHTML='';toast(e.message,true)}
   }
@@ -37,14 +42,14 @@
   function render(p,assetOnly){
     const host=document.getElementById('wsSubpanel');
     host.innerHTML=`<div class="subpanel open"><div class="subpanel-card">
-      <div class="subpanel-head"><div><h3>${assetOnly?'Gửi hồ sơ số':'Soạn lời kết nối'}</h3><small class="muted">Mục tiêu: mở một cuộc trao đổi 30–40 phút, chưa bán ngay.</small></div><button id="journeyClose">×</button></div>
+      <div class="subpanel-head"><div><h3>${assetOnly?'Gửi hồ sơ số':'Soạn email'}</h3><small class="muted">Mục tiêu: hẹn một buổi trao đổi online 30–40 phút.</small></div><button id="journeyClose">×</button></div>
       <div class="form-grid">
-        <label>Loại quan hệ<select id="journeyScenario" class="input">${SCENARIOS.map(x=>`<option value="${x[0]}" ${x[0]===p.scenario?'selected':''}>${x[1]}</option>`).join('')}</select></label>
+        <label>Quan hệ với Nhà trường<select id="journeyScenario" class="input">${SCENARIOS.map(x=>`<option value="${x[0]}" ${x[0]===p.scenario?'selected':''}>${x[1]}</option>`).join('')}</select></label>
         <label>Hồ sơ số<select id="journeyAsset" class="input">${ASSETS.map(x=>`<option value="${x[0]}" ${x[0]===p.asset.code?'selected':''}>${x[1]}</option>`).join('')}</select></label>
       </div>
       <div class="row-actions"><a class="btn ghost" id="openAsset" target="_blank" rel="noopener" href="${esc(p.asset.url)}">Mở hồ sơ số</a><button class="btn ghost" id="copyLink">Sao chép link</button><button class="btn ghost" id="copyMessage">Sao chép tin nhắn</button></div>
       ${assetOnly?'':`<label>Tới<input id="journeyTo" class="input" value="${esc(p.to_email||'')}"></label><label>CC<input id="journeyCc" class="input" value="${esc(p.cc_email)}" readonly></label><label>Tiêu đề<input id="journeySubject" class="input" value="${esc(p.subject)}"></label><label>Nội dung email<textarea id="journeyBody" class="input mail-body">${esc(p.body)}</textarea></label>`}
-      <div class="attachment-note">Không cần đính “Thư ngỏ.pdf” theo mặc định. Nội dung mở vấn đề nằm ngay trong email/tin nhắn; hồ sơ số là tài liệu xem thêm.</div>
+      <div class="attachment-note">Không cần đính “Thư ngỏ.pdf” theo mặc định. Nội dung nằm ngay trong email/tin nhắn; hồ sơ số là tài liệu tham khảo thêm.</div>
       <div class="row-actions">${assetOnly?'':`<button class="btn" id="journeyGmail">Mở Gmail của tôi</button>`}<button class="btn secondary" id="journeyConfirm">Xác nhận đã gửi</button></div>
     </div></div>`;
     document.getElementById('journeyClose').onclick=()=>host.innerHTML='';
@@ -67,7 +72,7 @@
   }
   async function confirmSent(p,assetOnly){
     const channel=assetOnly?'MESSAGE':'EMAIL';
-    if(!confirm('Xác nhận đã gửi nội dung này cho trường?'))return;
+    if(!confirm('Xác nhận đã gửi nội dung này cho Nhà trường?'))return;
     try{
       const r=await call('journey','logSent',{outreach_id:p.outreach_id,scenario:document.getElementById('journeyScenario').value,asset_code:document.getElementById('journeyAsset').value,channel});
       document.getElementById('wsSubpanel').innerHTML='';toast(r.message);if(window.refreshOutreach)await window.refreshOutreach(true);
