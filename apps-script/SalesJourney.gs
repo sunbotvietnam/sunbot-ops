@@ -13,6 +13,7 @@ function apiSessionJourney(sessionToken, action, payload) {
   switch (String(action || '')) {
     case 'prepare': return journeyPrepare_(user,payload);
     case 'logSent': return journeyLogSent_(user,payload);
+    case 'trackingSummary': return assetTrackingSummary_(user);
     case 'assets': return {assets:Object.keys(SALES_JOURNEY.ASSETS).map(function(k){return SALES_JOURNEY.ASSETS[k];})};
     default: throw new Error('Tác vụ hành trình bán hàng không hợp lệ.');
   }
@@ -24,7 +25,8 @@ function journeyPrepare_(user,p) {
   assertOutreachOwner_(user,row);
   const scenario = String(p.scenario || journeyScenario_(row)).toUpperCase();
   const assetDef = journeyAssetFor_(row,p.asset_code);
-  const asset = Object.assign({},assetDef,{url:journeyProfileUrl_(row,user,assetDef,'sunbot_ops')});
+  const link = assetTrackingLinkFor_(user,row,assetDef);
+  const asset = Object.assign({},assetDef,{url:link.short_url,link_id:link.link_id,full_url:link.full_url});
   const tpl = journeyTemplate_(user,scenario,row,asset.url);
   return {
     outreach_id:row.outreach_id,
@@ -68,15 +70,8 @@ function journeyAssetFor_(row, requested) {
 }
 
 function journeyProfileUrl_(row,user,asset,entryFrom) {
-  const q=[];
-  q.push('audience='+encodeURIComponent(String(asset.audience||'public')));
-  q.push('guided=1');
-  q.push('from='+encodeURIComponent(String(entryFrom||'sunbot_ops')));
-  const school=String(row&&row.ten_truong||'').trim();
-  const source=String(user&&(user.ho_ten||user.email)||'').trim();
-  if(school)q.push('school='+encodeURIComponent(school));
-  if(source)q.push('source='+encodeURIComponent(source));
-  return SALES_JOURNEY.PROFILE_BASE+'?'+q.join('&')+'#evidence';
+  const link=assetTrackingLinkFor_(user,row,asset);
+  return link.short_url;
 }
 
 function journeyTemplate_(user,scenario,row,profileUrl) {
@@ -116,18 +111,21 @@ function journeyLogSent_(user,p) {
   assertOutreachOwner_(user,row);
   const assetCode = String(p.asset_code || journeyAssetFor_(row).code);
   const assetDef = SALES_JOURNEY.ASSETS[assetCode] || journeyAssetFor_(row);
-  const evidenceUrl = journeyProfileUrl_(row,user,assetDef,'sunbot_ops');
+  const link = assetTrackingLinkFor_(user,row,assetDef);
+  const evidenceUrl = link.short_url;
   const channel = String(p.channel||'EMAIL').toUpperCase();
   const updateId = id_('CN');
   const label = journeyScenarioLabel_(String(p.scenario).toUpperCase());
+  const recipient = channel==='EMAIL' ? String(row.email_truong||'') : String(row.dien_thoai_dau_moi||'');
+  const sendId=assetTrackingRecordSend_(user,row,link,channel,p.scenario,recipient);
   append_('CAP_NHAT',{
     update_id:updateId,thoi_gian:now_(),user_id:user.user_id,account_id:row.account_id||'',work_id:row.work_id||'',opp_id:'',
     loai_cap_nhat:'GUI_LOI_KET_NOI',trang_thai_truoc:String(row.trang_thai_thuc_hien||''),trang_thai_moi:'DANG_CHO_PHAN_HOI',
-    ket_qua:'Đã gửi ' + label + ' qua ' + channel + '; tài liệu: ' + assetCode,
+    ket_qua:'Đã gửi ' + label + ' qua ' + channel + '; E-profile: ' + link.link_id,
     viec_tiep_theo:'Theo dõi phản hồi và đề nghị lịch trao đổi online 30–40 phút',han:dateOutreach_(addBusinessDaysOutreach_(new Date(),3)),muc_do:'BINH_THUONG',can_ceo:'FALSE',noi_dung_can_ceo:'',bang_chung_url:evidenceUrl
   });
   updateById_(OUTREACH.SHEET,'outreach_id',row.outreach_id,{trang_thai_thuc_hien:'DANG_CHO_PHAN_HOI',ngay_gui:row.ngay_gui||now_(),ngay_theo_doi_lai:dateOutreach_(addBusinessDaysOutreach_(new Date(),3)),updated_at:now_()});
-  audit_(user,'SEND_CONNECTION',OUTREACH.SHEET,row.outreach_id,{scenario:p.scenario,channel:channel,asset:assetCode,url:evidenceUrl});
+  audit_(user,'SEND_CONNECTION',OUTREACH.SHEET,row.outreach_id,{scenario:p.scenario,channel:channel,asset:assetCode,link_id:link.link_id,send_id:sendId,url:evidenceUrl});
   try { CacheService.getScriptCache().remove(FAST_API.KEY_PREFIX + String(user.user_id)); } catch (ignored) {}
-  return {ok:true,message:'Đã ghi nhận nội dung đã gửi và tạo mốc theo dõi sau 3 ngày làm việc.'};
+  return {ok:true,message:'Đã ghi nhận nội dung đã gửi và tạo mốc theo dõi sau 3 ngày làm việc.',link_id:link.link_id,send_id:sendId};
 }
