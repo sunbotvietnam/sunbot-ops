@@ -13,7 +13,8 @@ function apiSessionFast(sessionToken, action, payload) {
 }
 
 function fastLoad_(user, payload) {
-  ensureOutreachRuntimeSchemaSafe_();
+  // Không seed/sync ở request mở app. Login và render phải luôn nhanh;
+  // việc seed ban đầu chạy qua syncSafe ở request riêng có timeout dài.
   const force = !!payload.force;
   const key = FAST_API.KEY_PREFIX + String(user.user_id);
   const cache = CacheService.getScriptCache();
@@ -26,15 +27,14 @@ function fastLoad_(user, payload) {
   const boot = bootstrapSession_(user);
   const rows = outreachList_(user, {});
   const summary = outreachSummaryFromRows_(rows);
-  const result = {boot:boot, rows:rows, summary:summary, cached:false, generated_at:now_()};
+  const result = {boot:boot, rows:rows, summary:summary, cached:false, generated_at:now_(), needs_seed:rows.length===0};
   try { cache.put(key, JSON.stringify(result), FAST_API.CACHE_SECONDS); } catch (ignored) {}
   return result;
 }
 
 function fastOutreach_(user, payload) {
-  ensureOutreachRuntimeSchemaSafe_();
   const rows = outreachList_(user, payload || {});
-  return {rows:rows, summary:outreachSummaryFromRows_(rows), generated_at:now_()};
+  return {rows:rows, summary:outreachSummaryFromRows_(rows), generated_at:now_(), needs_seed:rows.length===0};
 }
 
 function fastTasks_(user, payload) {
