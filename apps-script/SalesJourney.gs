@@ -1,5 +1,6 @@
 const SALES_JOURNEY = Object.freeze({
   PAGES_BASE: 'https://sunbotvietnam.github.io/sunbot-ops',
+  HOTLINE: '0866 109 086',
   ASSETS: Object.freeze({
     PROFILE_PUBLIC: {code:'PROFILE_PUBLIC', name:'Hồ sơ số Sunbot – Trường công lập', url:'https://sunbotvietnam.github.io/sunbot-ops/profile/cong-lap.html', audience:'PUBLIC', public:true},
     PROFILE_PRIVATE:{code:'PROFILE_PRIVATE',name:'Hồ sơ số Sunbot – Trường tư thục', url:'https://sunbotvietnam.github.io/sunbot-ops/profile/tu-thuc.html',audience:'PRIVATE',public:true}
@@ -52,7 +53,12 @@ function journeyScenario_(row) {
 }
 
 function journeyScenarioLabel_(s) {
-  return ({NEW:'Kết nối lần đầu',KNOWN:'Kết nối lại',FORMER:'Tái kết nối',CURRENT:'Trao đổi năm học mới'})[s] || 'Kết nối lần đầu';
+  return ({
+    NEW:'Chưa từng trao đổi với trường',
+    KNOWN:'Đã từng trao đổi, chưa triển khai',
+    FORMER:'Đã từng triển khai Sunbot',
+    CURRENT:'Đang triển khai Sunbot'
+  })[s] || 'Chưa từng trao đổi với trường';
 }
 
 function journeyAssetFor_(row, requested) {
@@ -64,40 +70,40 @@ function journeyAssetFor_(row, requested) {
 function journeyPersonalLine_(row) {
   const raw = String(row.thong_diep_de_xuat || '').replace(/\s+/g,' ').trim();
   if (!raw) return '';
-  const clean = raw.length > 260 ? raw.slice(0,257) + '…' : raw;
-  return '\n\nQua những thông tin bên em tìm hiểu được về Nhà trường, em thấy có một số điểm khá đáng để hai bên trao đổi thêm: ' + clean;
+  const clean = raw.length > 220 ? raw.slice(0,217) + '…' : raw;
+  return '\n\nTheo thông tin bên em đang có, ' + clean;
 }
 
 function journeyTemplate_(user,scenario,row,profileUrl) {
   const school = String(row.ten_truong || 'Nhà trường').trim();
   const sender = String(user.ho_ten || 'bên em').trim();
-  const signature = '\n\nTrân trọng,\n' + sender + '\nSunbot – Kiro Việt Nam\n' + (user.email ? 'Email: ' + user.email : '');
-  const profileLine = '\n\nEm gửi cô/thầy hồ sơ giới thiệu của Sunbot để tiện tham khảo trước:\n' + profileUrl;
   const personal = journeyPersonalLine_(row);
-  const cta = '\n\nNếu cô/thầy thấy phù hợp, em rất mong có thể xin một buổi trao đổi online khoảng 30–40 phút. Bên em sẽ giới thiệu rất ngắn phần cần thiết, còn phần lớn thời gian muốn dành để nghe thêm về mục tiêu, điều kiện và những điều Nhà trường đang thực sự cần. Sau đó Sunbot mới cùng Nhà trường xem có hướng nào phù hợp để đi tiếp hay không.';
+  const profileLine = '\n\nEm xin phép gửi Ban Giám hiệu hồ sơ Sunbot để tiện tham khảo:\n' + profileUrl;
+  const hotline = '\n\nVui lòng phản hồi lại email này hoặc liên hệ hotline ' + SALES_JOURNEY.HOTLINE + '.';
+  const signature = '\n\nTrân trọng,\n' + sender + '\nSunbot – Kiro Việt Nam\n' + (user.email ? 'Email: ' + user.email : '');
 
   if (scenario === 'CURRENT') return {
-    subject:'Trao đổi cùng ' + school + ' về kế hoạch Sunbot năm học mới',
-    body:'Kính gửi cô/thầy Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Nhân dịp Nhà trường đang chuẩn bị cho năm học mới, em xin phép liên hệ để cùng cô/thầy rà soát lại việc triển khai Sunbot tại trường và trao đổi về kế hoạch sắp tới.\n\nSau một năm triển khai, bên em nghĩ điều quan trọng không chỉ là “có tiếp tục hay không”, mà là phần nào đang thực sự có giá trị với trẻ và giáo viên, phần nào còn bất tiện trong vận hành, và năm học mới Nhà trường muốn thay đổi điều gì. Sunbot muốn nghe những điều đó trước khi nói đến phương án.' + personal + profileLine + cta + signature,
-    message:'Em xin phép gửi cô/thầy hồ sơ Sunbot cập nhật cho năm học mới: ' + profileUrl + '. Bên em muốn xin một buổi online khoảng 30–40 phút để cùng nhìn lại phần nào đang hiệu quả, phần nào còn vướng và nhu cầu mới của Nhà trường trước khi bàn phương án tiếp theo.'
+    subject:'Trao đổi kế hoạch Sunbot cùng ' + school + ' trong năm học mới',
+    body:'Kính gửi Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Nhân dịp Nhà trường chuẩn bị cho năm học mới, em xin phép liên hệ để trao đổi về kế hoạch triển khai Sunbot trong thời gian tới.\n\nNăm học mới tiếp tục có nhiều hoạt động đổi mới về nội dung, phương pháp, trải nghiệm học tập, STEAM và ứng dụng công nghệ phù hợp với trẻ mầm non. Sunbot cũng đang cập nhật chương trình và các nội dung hỗ trợ để đồng hành tốt hơn với Nhà trường trong quá trình triển khai.' + personal + profileLine + '\n\nSunbot mong được cùng Nhà trường trao đổi về kế hoạch năm học, nhu cầu hiện tại và những nội dung cần điều chỉnh hoặc bổ sung. Nếu thuận tiện, em xin phép hẹn Ban Giám hiệu một buổi trao đổi online khoảng 30–40 phút để hai bên cùng thống nhất hướng thực hiện.' + hotline + signature,
+    message:'Em xin phép gửi Ban Giám hiệu hồ sơ Sunbot cập nhật cho năm học mới: ' + profileUrl + '. Sunbot mong được trao đổi online khoảng 30–40 phút về kế hoạch và nhu cầu triển khai của Nhà trường. Vui lòng phản hồi lại tin nhắn này hoặc liên hệ hotline ' + SALES_JOURNEY.HOTLINE + '.'
   };
 
   if (scenario === 'FORMER') return {
     subject:'Sunbot xin phép kết nối lại với ' + school,
-    body:'Kính gửi cô/thầy Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Trước đây Nhà trường đã từng triển khai Sunbot, vì vậy em xin phép liên hệ lại để hỏi thăm tình hình và cập nhật với cô/thầy về những thay đổi của bên em trong năm học mới.\n\nBên em hiểu rằng một chương trình dừng lại thường không chỉ vì nội dung chuyên môn; nhiều khi còn liên quan đến nhân sự, cách vận hành, chi phí, thời điểm hoặc cơ chế của Nhà trường. Vì vậy Sunbot không muốn mặc định quay lại mô hình cũ, mà muốn nghe lại thật kỹ xem trước đây điều gì chưa thuận lợi và hiện nay nhu cầu của trường đã thay đổi ra sao.' + personal + profileLine + cta + signature,
-    message:'Em xin phép gửi lại cô/thầy hồ sơ Sunbot cập nhật: ' + profileUrl + '. Vì Nhà trường đã từng triển khai, bên em muốn ưu tiên nghe lại những điểm chưa thuận lợi trước đây và nhu cầu hiện tại trong một buổi online khoảng 30–40 phút, rồi mới tính đến phương án.'
+    body:'Kính gửi Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Trước đây Nhà trường đã từng triển khai chương trình Sunbot, vì vậy em xin phép liên hệ lại nhân dịp chuẩn bị cho năm học mới.\n\nHiện nay STEAM, công nghệ và các hoạt động phát triển tư duy tiếp tục được nhiều trường mầm non quan tâm trong quá trình đổi mới hoạt động giáo dục. Trong thời gian vừa qua Sunbot cũng đã cập nhật chương trình, học liệu và phương án phối hợp với Nhà trường.' + personal + profileLine + '\n\nSunbot rất mong có một buổi trao đổi để nghe thêm về nhu cầu hiện tại của Nhà trường, đồng thời cập nhật những thay đổi mới của chương trình và xem có hướng hợp tác nào phù hợp trong năm học này. Nếu thuận tiện, em xin phép hẹn Ban Giám hiệu một buổi online khoảng 30–40 phút.' + hotline + signature,
+    message:'Em xin phép gửi Ban Giám hiệu hồ sơ Sunbot cập nhật: ' + profileUrl + '. Vì Nhà trường đã từng triển khai Sunbot, bên em rất mong có một buổi online khoảng 30–40 phút để cập nhật chương trình và trao đổi nhu cầu năm học mới. Vui lòng phản hồi lại tin nhắn này hoặc liên hệ hotline ' + SALES_JOURNEY.HOTLINE + '.'
   };
 
   if (scenario === 'KNOWN') return {
-    subject:'Xin phép kết nối lại với ' + school + ' về Sunbot',
-    body:'Kính gửi cô/thầy Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Trước đây Sunbot đã từng có dịp trao đổi với Nhà trường, tuy nhiên khi đó hai bên chưa có điều kiện triển khai. Em xin phép kết nối lại để cập nhật với cô/thầy về một số thay đổi trong năm học mới.\n\nThực tế một phương án từng chưa phù hợp có thể do thời điểm, nhân sự, cách tổ chức lớp, mức đầu tư hoặc đơn giản là chưa đúng nhu cầu lúc đó. Vì vậy bên em không muốn tiếp tục từ một đề xuất cũ, mà muốn hiểu lại xem hiện nay Nhà trường đang ưu tiên điều gì và đâu mới là khoảng trống Sunbot có thể hỗ trợ.' + personal + profileLine + cta + signature,
-    message:'Em xin phép gửi cô/thầy hồ sơ Sunbot cập nhật: ' + profileUrl + '. So với lần trao đổi trước, bên em muốn bắt đầu lại từ nhu cầu hiện tại của Nhà trường. Nếu thuận tiện, em xin khoảng 30–40 phút trao đổi online để cùng xem hiện nay đâu là vấn đề đáng ưu tiên nhất.'
+    subject:'Sunbot xin phép kết nối lại với ' + school,
+    body:'Kính gửi Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ' bên Sunbot. Trước đây Sunbot đã từng có dịp trao đổi với Nhà trường, tuy nhiên hai bên chưa triển khai chương trình.\n\nTrong thời gian vừa qua, STEAM, công nghệ và các hoạt động phát triển tư duy cho trẻ mầm non tiếp tục được nhiều Nhà trường quan tâm. Sunbot cũng đã cập nhật chương trình và cách thức phối hợp để phù hợp hơn với điều kiện triển khai thực tế tại từng trường.' + personal + profileLine + '\n\nNếu Nhà trường vẫn đang quan tâm đến các nội dung này, Sunbot rất mong có dịp trao đổi lại để cập nhật nhu cầu hiện tại và xem có phương án nào phù hợp. Em xin phép đề xuất một buổi trao đổi online khoảng 30–40 phút vào thời gian thuận tiện với Ban Giám hiệu.' + hotline + signature,
+    message:'Em xin phép gửi Ban Giám hiệu hồ sơ Sunbot cập nhật: ' + profileUrl + '. Nếu Nhà trường vẫn quan tâm đến STEAM, công nghệ hoặc các hoạt động phát triển tư duy cho trẻ, bên em mong được trao đổi online khoảng 30–40 phút để cập nhật nhu cầu hiện tại. Vui lòng phản hồi lại tin nhắn này hoặc liên hệ hotline ' + SALES_JOURNEY.HOTLINE + '.'
   };
 
   return {
-    subject:'Xin phép gửi cô/thầy một số thông tin về chương trình Sunbot',
-    body:'Kính gửi cô/thầy Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ', phụ trách kết nối các trường mầm non của Sunbot – Kiro Việt Nam. Em xin phép gửi cô/thầy một số thông tin ngắn để Nhà trường tham khảo.\n\nSunbot hiện tập trung vào các hoạt động lập trình tư duy, robotics và STEAM dành cho trẻ mầm non, đi cùng chương trình và hỗ trợ giáo viên trong quá trình triển khai. Bên em hiểu rằng với một trường mầm non, thêm một chương trình mới không chỉ là chọn nội dung hay thiết bị; Nhà trường còn phải cân nhắc giáo viên có làm chủ được không, lịch học có phù hợp không, mức đầu tư có hợp lý không và phụ huynh có nhìn thấy giá trị của chương trình hay không. Vì vậy Sunbot muốn bắt đầu bằng việc hiểu điều kiện thật của trường trước.' + personal + profileLine + cta + signature,
-    message:'Em xin phép gửi cô/thầy hồ sơ giới thiệu ngắn về Sunbot: ' + profileUrl + '. Bên em hiểu rằng thêm một chương trình mới còn liên quan đến giáo viên, lịch học, đầu tư và giá trị phụ huynh nhìn thấy. Nếu cô/thầy thấy phù hợp, em xin khoảng 30–40 phút trao đổi online để hiểu nhu cầu thực tế trước khi đề xuất bất kỳ phương án nào.'
+    subject:'Sunbot xin phép gửi Nhà trường một số thông tin tham khảo',
+    body:'Kính gửi Ban Giám hiệu ' + school + ',\n\nEm là ' + sender + ', phụ trách kết nối các trường mầm non của Sunbot – Kiro Việt Nam.\n\nTrong những năm gần đây, STEAM, công nghệ và các hoạt động phát triển tư duy ngày càng được quan tâm trong quá trình đổi mới giáo dục mầm non. Sunbot hiện có hai chương trình Lập trình tư duy cùng Sunbot và STEAM Sáng tạo cùng Sunbot, được thiết kế riêng cho lứa tuổi mầm non.' + personal + profileLine + '\n\nSunbot mong muốn có cơ hội tìm hiểu thêm về định hướng và nhu cầu thực tế của Nhà trường để xem hai bên có nội dung nào phù hợp để trao đổi sâu hơn. Nếu thuận tiện, em xin phép hẹn Ban Giám hiệu một buổi trao đổi online khoảng 30–40 phút. Trong buổi này Sunbot sẽ giới thiệu ngắn về chương trình và dành phần lớn thời gian để trao đổi về nhu cầu của Nhà trường.' + hotline + signature,
+    message:'Em xin phép gửi Ban Giám hiệu hồ sơ giới thiệu Sunbot: ' + profileUrl + '. Sunbot mong được đồng hành cùng Nhà trường trong các hoạt động STEAM, công nghệ và phát triển tư duy cho trẻ mầm non. Nếu thuận tiện, bên em xin một buổi online khoảng 30–40 phút để giới thiệu ngắn và tìm hiểu nhu cầu của Nhà trường. Vui lòng phản hồi lại tin nhắn này hoặc liên hệ hotline ' + SALES_JOURNEY.HOTLINE + '.'
   };
 }
 
@@ -118,5 +124,5 @@ function journeyLogSent_(user,p) {
   updateById_(OUTREACH.SHEET,'outreach_id',row.outreach_id,{trang_thai_thuc_hien:'DANG_CHO_PHAN_HOI',ngay_gui:row.ngay_gui||now_(),ngay_theo_doi_lai:dateOutreach_(addBusinessDaysOutreach_(new Date(),3)),updated_at:now_()});
   audit_(user,'SEND_CONNECTION',OUTREACH.SHEET,row.outreach_id,{scenario:p.scenario,channel:channel,asset:assetCode});
   try { CacheService.getScriptCache().remove(FAST_API.KEY_PREFIX + String(user.user_id)); } catch (ignored) {}
-  return {ok:true,message:'Đã ghi nhận lời kết nối và tạo mốc theo dõi sau 3 ngày làm việc.'};
+  return {ok:true,message:'Đã ghi nhận nội dung đã gửi và tạo mốc theo dõi sau 3 ngày làm việc.'};
 }
