@@ -1,8 +1,8 @@
 const SALES_JOURNEY = Object.freeze({
   PROFILE_BASE: 'https://sunbotvietnam.github.io/portal/profile-v2/',
   ASSETS: Object.freeze({
-    PROFILE_PUBLIC: {code:'PROFILE_PUBLIC', name:'E-profile Sunbot – Trường công lập', audience:'public', public:true},
-    PROFILE_PRIVATE:{code:'PROFILE_PRIVATE',name:'E-profile Sunbot – Trường tư thục',audience:'private',public:true}
+    PROFILE_PUBLIC: {code:'PROFILE_PUBLIC', name:'E-profile Sunbot – Trường công lập', audience:'public', url:'https://sunbotvietnam.github.io/portal/profile-v2/?audience=public&guided=1&from=sunbot_ops#evidence', public:true},
+    PROFILE_PRIVATE:{code:'PROFILE_PRIVATE',name:'E-profile Sunbot – Trường tư thục',audience:'private',url:'https://sunbotvietnam.github.io/portal/profile-v2/?audience=private&guided=1&from=sunbot_ops#evidence',public:true}
   })
 });
 
