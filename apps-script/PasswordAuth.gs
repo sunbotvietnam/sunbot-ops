@@ -17,8 +17,10 @@ function loginPinByEmail_(email, pin) {
 
   const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalizedEmail);
   const cred = credentialRowForEmail_(normalizedEmail);
-  const valid = !!person && isActiveStatus_(person.trang_thai) && !!cred && String(cred.status || '').toUpperCase() === 'ACTIVE' &&
-    timingSafeEqual_(credentialVerifier_(normalizedEmail, value), String(cred.verifier_hmac_sha256 || ''));
+  const expected = cred ? String(cred.verifier_hmac_sha256 || '') : '';
+  const candidates = credentialVerifierCandidates_(normalizedEmail, value);
+  const verifierOk = candidates.some(function(v){ return timingSafeEqual_(v, expected); });
+  const valid = !!person && isActiveStatus_(person.trang_thai) && !!cred && String(cred.status || '').toUpperCase() === 'ACTIVE' && verifierOk;
 
   if (!valid) {
     const failures = Number(cache.get(failKey) || 0) + 1;
@@ -53,11 +55,19 @@ function credentialRows_() {
   });
 }
 
-function credentialVerifier_(email, pin) {
+function credentialVerifierCandidates_(email, pin) {
   const pepperHex = credentialSecret_('PIN_PEPPER_HEX');
-  const keyBytes = hexBytes_(pepperHex);
-  const bytes = Utilities.computeHmacSha256Signature(String(email).toLowerCase() + ':' + String(pin), keyBytes);
-  return bytes.map(function(b){ const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2); }).join('');
+  const message = String(email).toLowerCase() + ':' + String(pin);
+  const asString = hmacHexWithKey_(message, pepperHex);
+  // Transitional compatibility for verifiers written before string-key normalization.
+  const asBytes = hmacHexWithKey_(message, hexBytes_(pepperHex));
+  return [asString, asBytes];
+}
+
+function hmacHexWithKey_(message, key) {
+  return Utilities.computeHmacSha256Signature(message, key).map(function(b){
+    const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2);
+  }).join('');
 }
 
 function credentialSecret_(key) {
