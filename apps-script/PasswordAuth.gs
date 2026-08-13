@@ -1,5 +1,6 @@
 const PASSWORD_AUTH = Object.freeze({
   SHEET: 'AUTH_CREDENTIALS',
+  SECRET_PROP: 'SUNBOT_OPS_PIN_PEPPER_HEX',
   MAX_ATTEMPTS: 5,
   LOCK_SECONDS: 15 * 60
 });
@@ -74,11 +75,25 @@ function hmacHexWithKey_(message, key) {
 }
 
 function credentialSecret_(key) {
-  const rows = credentialRows_();
-  const row = rows.find(function(r){ return String(r.user_id || '') === '__SYSTEM__' && String(r.secret_key || '') === String(key); });
-  const value = row ? String(row.secret_value || '').trim() : '';
-  if (!/^[0-9a-f]{64}$/i.test(value)) throw new Error('Cấu hình bảo mật không hợp lệ.');
-  return value;
+  const props = PropertiesService.getScriptProperties();
+  const stored = String(props.getProperty(PASSWORD_AUTH.SECRET_PROP) || '').trim();
+  if (/^[0-9a-f]{64}$/i.test(stored)) return stored;
+
+  const sh = getDb_().getSheetByName(PASSWORD_AUTH.SHEET);
+  if (!sh || sh.getLastRow() < 2) throw new Error('Cấu hình bảo mật không hợp lệ.');
+  const h = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);
+  const userCol = h.indexOf('user_id');
+  const keyCol = h.indexOf('secret_key');
+  const valueCol = h.indexOf('secret_value');
+  if (userCol < 0 || keyCol < 0 || valueCol < 0) throw new Error('Cấu hình bảo mật không hợp lệ.');
+  const rows = sh.getRange(2,1,sh.getLastRow()-1,h.length).getValues();
+  const idx = rows.findIndex(function(r){ return String(r[userCol] || '') === '__SYSTEM__' && String(r[keyCol] || '') === String(key); });
+  if (idx < 0) throw new Error('Cấu hình bảo mật không hợp lệ.');
+  const seed = String(rows[idx][valueCol] || '').trim();
+  if (!/^[0-9a-f]{64}$/i.test(seed)) throw new Error('Cấu hình bảo mật không hợp lệ.');
+  props.setProperty(PASSWORD_AUTH.SECRET_PROP, seed);
+  sh.getRange(idx + 2, valueCol + 1).clearContent();
+  return seed;
 }
 
 function hexBytes_(hex) {
