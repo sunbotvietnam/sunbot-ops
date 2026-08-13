@@ -9,6 +9,14 @@ function doPost(e) {
     return hubPermissionsResponse_(token);
   }
 
+  if (action === 'publicAssetEvent') {
+    try {
+      return jsonPostResponse_(assetTrackingPublicEvent_(json || {}));
+    } catch (err) {
+      return jsonPostResponse_({ok:false});
+    }
+  }
+
   return hardenedPostError_('Tác vụ không hợp lệ.');
 }
 
@@ -16,10 +24,15 @@ function parseJsonPost_(e) {
   try {
     const raw = e && e.postData && e.postData.contents;
     if (!raw || String(raw).trim().charAt(0) !== '{') return null;
+    if (String(raw).length > 12000) return null;
     return JSON.parse(raw);
   } catch (err) {
     return null;
   }
+}
+
+function jsonPostResponse_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj || {ok:true})).setMimeType(ContentService.MimeType.JSON);
 }
 
 function hardenedPostError_(message) {
