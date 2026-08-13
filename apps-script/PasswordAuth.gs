@@ -59,9 +59,12 @@ function credentialVerifierCandidates_(email, pin) {
   const pepperHex = credentialSecret_('PIN_PEPPER_HEX');
   const message = String(email).toLowerCase() + ':' + String(pin);
   const asString = hmacHexWithKey_(message, pepperHex);
-  // Transitional compatibility for verifiers written before string-key normalization.
   const asBytes = hmacHexWithKey_(message, hexBytes_(pepperHex));
   return [asString, asBytes];
+}
+
+function credentialVerifier_(email, pin) {
+  return credentialVerifierCandidates_(email, pin)[0];
 }
 
 function hmacHexWithKey_(message, key) {
