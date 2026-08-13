@@ -19,8 +19,7 @@ function loginPinByEmail_(email, pin) {
   const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalizedEmail);
   const cred = credentialRowForEmail_(normalizedEmail);
   const expected = cred ? String(cred.verifier_hmac_sha256 || '') : '';
-  const candidates = credentialVerifierCandidates_(normalizedEmail, value);
-  const verifierOk = candidates.some(function(v){ return timingSafeEqual_(v, expected); });
+  const verifierOk = timingSafeEqual_(credentialVerifier_(normalizedEmail, value), expected);
   const valid = !!person && isActiveStatus_(person.trang_thai) && !!cred && String(cred.status || '').toUpperCase() === 'ACTIVE' && verifierOk;
 
   if (!valid) {
@@ -56,20 +55,10 @@ function credentialRows_() {
   });
 }
 
-function credentialVerifierCandidates_(email, pin) {
+function credentialVerifier_(email, pin) {
   const pepperHex = credentialSecret_('PIN_PEPPER_HEX');
   const message = String(email).toLowerCase() + ':' + String(pin);
-  const asString = hmacHexWithKey_(message, pepperHex);
-  const asBytes = hmacHexWithKey_(message, hexBytes_(pepperHex));
-  return [asString, asBytes];
-}
-
-function credentialVerifier_(email, pin) {
-  return credentialVerifierCandidates_(email, pin)[0];
-}
-
-function hmacHexWithKey_(message, key) {
-  return Utilities.computeHmacSha256Signature(message, key).map(function(b){
+  return Utilities.computeHmacSha256Signature(message, pepperHex).map(function(b){
     const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2);
   }).join('');
 }
@@ -94,10 +83,6 @@ function credentialSecret_(key) {
   props.setProperty(PASSWORD_AUTH.SECRET_PROP, seed);
   sh.getRange(idx + 2, valueCol + 1).clearContent();
   return seed;
-}
-
-function hexBytes_(hex) {
-  const out=[]; for(let i=0;i<hex.length;i+=2) out.push(parseInt(hex.slice(i,i+2),16)); return out;
 }
 
 function logPasswordAuth_(action, entityId, detail) {
