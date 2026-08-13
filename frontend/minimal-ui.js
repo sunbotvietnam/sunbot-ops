@@ -34,10 +34,21 @@
     document.querySelectorAll('.school-card .detail').forEach(b=>b.onclick=()=>{const row=state.rows.find(x=>x.outreach_id===b.closest('.school-card').dataset.id);if(row&&window.openSchoolWorkspace)window.openSchoolWorkspace(row)});
   };
 
+  function statusGroup(code){
+    code=String(code||'').toUpperCase();
+    if(['CAN_GUI','CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC','DANG_SOAN'].includes(code))return 'todo';
+    if(code==='DANG_CHO_PHAN_HOI')return 'waiting';
+    if(['DA_PHAN_HOI','DA_HEN_TRAO_DOI','DA_TAO_CO_HOI'].includes(code))return 'progress';
+    if(code==='CHAM_SOC_ACCOUNT')return 'customer';
+    if(['TAM_DUNG','THEO_DOI'].includes(code))return 'paused';
+    return 'neutral';
+  }
+
   function minimalCard(r){
     const status=STATUS_LABELS[r.trang_thai_thuc_hien]||r.trang_thai_thuc_hien||'Chưa xác định';
+    const group=statusGroup(r.trang_thai_thuc_hien);
     const due=r.ngay_theo_doi_lai?`<small>Hạn: ${esc(r.ngay_theo_doi_lai)}</small>`:'';
-    return `<article class="school-card minimal-card" data-id="${esc(r.outreach_id)}"><div class="card-head"><div><div class="badges"><span class="badge">${esc(r.tinh_thanh||'')}</span></div><h3>${esc(r.ten_truong)}</h3><p>${esc(status)}</p></div></div>${r.hanh_dong_de_xuat?`<div class="next"><b>Tiếp theo:</b> ${esc(r.hanh_dong_de_xuat)} ${due}</div>`:''}<div class="actions"><button class="btn detail">Mở hồ sơ</button></div></article>`;
+    return `<article class="school-card minimal-card status-${group}" data-id="${esc(r.outreach_id)}"><div class="card-head"><div><div class="badges"><span class="badge">${esc(r.tinh_thanh||'')}</span></div><h3>${esc(r.ten_truong)}</h3><span class="status-chip status-chip-${group}">${esc(status)}</span></div></div>${r.hanh_dong_de_xuat?`<div class="next"><b>Tiếp theo:</b> ${esc(r.hanh_dong_de_xuat)} ${due}</div>`:''}<div class="actions"><button class="btn detail">Mở hồ sơ</button></div></article>`;
   }
 
   function simplifyWorkspace(){

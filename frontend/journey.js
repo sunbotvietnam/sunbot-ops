@@ -49,7 +49,6 @@
       </div>
       <div class="row-actions"><a class="btn ghost" id="openAsset" target="_blank" rel="noopener" href="${esc(p.asset.url)}">Mở hồ sơ số</a><button class="btn ghost" id="copyLink">Sao chép link</button><button class="btn ghost" id="copyMessage">Sao chép tin nhắn</button></div>
       ${assetOnly?'':`<label>Tới<input id="journeyTo" class="input" value="${esc(p.to_email||'')}"></label><label>CC<input id="journeyCc" class="input" value="${esc(p.cc_email)}" readonly></label><label>Tiêu đề<input id="journeySubject" class="input" value="${esc(p.subject)}"></label><label>Nội dung email<textarea id="journeyBody" class="input mail-body">${esc(p.body)}</textarea></label>`}
-      <div class="attachment-note">Không cần đính “Thư ngỏ.pdf” theo mặc định. Nội dung nằm ngay trong email/tin nhắn; hồ sơ số là tài liệu tham khảo thêm.</div>
       <div class="row-actions">${assetOnly?'':`<button class="btn" id="journeyGmail">Mở Gmail của tôi</button>`}<button class="btn secondary" id="journeyConfirm">Xác nhận đã gửi</button></div>
     </div></div>`;
     document.getElementById('journeyClose').onclick=()=>host.innerHTML='';
