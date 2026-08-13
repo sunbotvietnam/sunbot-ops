@@ -13,7 +13,7 @@ function apiSessionFast(sessionToken, action, payload) {
 }
 
 function fastLoad_(user, payload) {
-  ensureOutreachRuntimeSchema_();
+  ensureOutreachRuntimeSchemaSafe_();
   const force = !!payload.force;
   const key = FAST_API.KEY_PREFIX + String(user.user_id);
   const cache = CacheService.getScriptCache();
@@ -32,7 +32,7 @@ function fastLoad_(user, payload) {
 }
 
 function fastOutreach_(user, payload) {
-  ensureOutreachRuntimeSchema_();
+  ensureOutreachRuntimeSchemaSafe_();
   const rows = outreachList_(user, payload || {});
   return {rows:rows, summary:outreachSummaryFromRows_(rows), generated_at:now_()};
 }
