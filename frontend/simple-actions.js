@@ -7,7 +7,7 @@
     const hero=document.querySelector('#content .hero');
     if(!hero||q('addSchoolBtn'))return;
     const btn=document.createElement('button');
-    btn.id='addSchoolBtn';btn.className='btn add-school-btn';btn.textContent='＋ Thêm trường mới';
+    btn.id='addSchoolBtn';btn.className='btn add-school-btn';btn.textContent='＋ Thêm trường';
     btn.onclick=openAddSchool;
     hero.appendChild(btn);
   }
@@ -36,6 +36,7 @@
     q('saveNewSchool').onclick=saveNewSchool;
     setTimeout(()=>q('newSchoolName')?.focus(),30);
   }
+  window.openAddSchool=openAddSchool;
 
   function closeAdd(){const x=q('workspaceOverlay');if(x)x.classList.remove('open');document.body.classList.remove('workspace-open')}
 
@@ -49,7 +50,8 @@
     try{
       const res=await call('outreachCreate','',{ten_truong:name,tinh_thanh:province,email_truong:email,dien_thoai_dau_moi:phone});
       closeAdd();
-      if(window.refreshWorkspaceData)await window.refreshWorkspaceData();
+      if(window.refreshOutreach)await window.refreshOutreach(true);
+      else if(window.refreshWorkspaceData)await window.refreshWorkspaceData();
       toast(res.message||'Đã thêm trường.');
       const row=(state.rows||[]).find(r=>String(r.outreach_id)===String(res.outreach_id));
       if(row&&window.openSchoolWorkspace)window.openSchoolWorkspace(row);
