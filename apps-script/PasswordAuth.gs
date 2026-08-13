@@ -1,57 +1,75 @@
 const PASSWORD_AUTH = Object.freeze({
-  ADMIN_USERNAME: 'admin',
-  ADMIN_PASSWORD_SHA256: 'a337cd1abcf35b0ebabeac85425fc792b5c3bb7a1955da11335cab46d47090fe',
-  ADMIN_SALT: 'sunbot-admin-v1:',
-  STAFF_SALT: 'sunbot-staff-v1:',
-  STAFF_PIN_SHA256: Object.freeze({
-    'TCH-LTD-012': 'de2777cd988501954dc5906f1560eb784fecb215fdf71ec80af0f030d1c08a18',
-    'TCH-NTA-014': '7a1fac5e7f93c8e3ced909e78ef80f5bd141aa3a940227b9740687bb4f667e58',
-    'UP-HOANG-NHUNG': 'ea1b3a2c684e14b4c807b0a004daeebba94cdba2711f0a688915b079a3197838'
-  }),
+  SHEET: 'AUTH_CREDENTIALS',
   MAX_ATTEMPTS: 5,
   LOCK_SECONDS: 15 * 60
 });
 
-function loginAdminPassword(username, password) { return loginPassword_(username, password); }
-
-function loginPassword_(username, password) {
+function loginPinByEmail_(email, pin) {
   ensureProductionProperties_();
+  const normalizedEmail = normalizeEmail_(email);
+  const value = String(pin || '').trim();
+  if (!/^\d{6}$/.test(value)) throw new Error('Mã PIN phải gồm 6 chữ số.');
+
   const cache = CacheService.getScriptCache();
-  const rawUser = String(username || '').trim();
-  const normalizedUser = rawUser.toUpperCase();
-  const pass = String(password || '');
-  const lockKey = 'PASSWORD_LOGIN_LOCK:' + normalizedUser;
-  const failKey = 'PASSWORD_LOGIN_FAILS:' + normalizedUser;
+  const lockKey = 'PIN_LOGIN_LOCK:' + normalizedEmail;
+  const failKey = 'PIN_LOGIN_FAILS:' + normalizedEmail;
   if (cache.get(lockKey)) throw new Error('Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.');
 
-  let person = null;
-  let valid = false;
-  if (rawUser.toLowerCase() === PASSWORD_AUTH.ADMIN_USERNAME) {
-    valid = timingSafeEqual_(sha256Hex_(PASSWORD_AUTH.ADMIN_SALT + pass), PASSWORD_AUTH.ADMIN_PASSWORD_SHA256);
-    if (valid) person = findOne_(APP.SHEETS.PEOPLE, 'email', String(PRODUCTION.OWNER_EMAIL || '').trim().toLowerCase());
-  } else {
-    const expectedHash = PASSWORD_AUTH.STAFF_PIN_SHA256[normalizedUser] || '';
-    valid = !!expectedHash && timingSafeEqual_(sha256Hex_(PASSWORD_AUTH.STAFF_SALT + pass), expectedHash);
-    if (valid) person = findOne_(APP.SHEETS.PEOPLE, 'user_id', normalizedUser);
-  }
+  const person = findOne_(APP.SHEETS.PEOPLE, 'email', normalizedEmail);
+  const cred = credentialRowForEmail_(normalizedEmail);
+  const valid = !!person && isActiveStatus_(person.trang_thai) && !!cred && String(cred.status || '').toUpperCase() === 'ACTIVE' &&
+    timingSafeEqual_(credentialVerifier_(normalizedEmail, value), String(cred.verifier_hmac_sha256 || ''));
 
-  if (!valid || !person || !isActiveStatus_(person.trang_thai)) {
+  if (!valid) {
     const failures = Number(cache.get(failKey) || 0) + 1;
-    if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) { cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS); cache.remove(failKey); }
-    else cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
-    logPasswordAuth_('PASSWORD_LOGIN_FAILED', normalizedUser || rawUser, {attempts: failures});
+    if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) {
+      cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS);
+      cache.remove(failKey);
+    } else {
+      cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
+    }
+    logPasswordAuth_('PIN_LOGIN_FAILED', normalizedEmail, {attempts: failures});
     throw new Error('Email hoặc mã PIN không đúng.');
   }
 
-  cache.remove(failKey); cache.remove(lockKey);
-  if (String(person.user_id) === 'USR-TUONGVAN1906') ensureInitialOperationalData_(String(person.user_id));
+  cache.remove(failKey);
+  cache.remove(lockKey);
   const token = createSessionToken_(person);
-  logPasswordAuth_('PASSWORD_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id});
+  logPasswordAuth_('PIN_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id});
   return {ok:true, token:token, userId:String(person.user_id), expiresIn:AUTH.SESSION_TTL_SECONDS};
 }
 
-function sha256Hex_(text) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8).map(function(b){ const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2); }).join('');
+function credentialRowForEmail_(email) {
+  const rows = credentialRows_();
+  return rows.find(function(r){ return String(r.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase(); }) || null;
+}
+
+function credentialRows_() {
+  const sh = getDb_().getSheetByName(PASSWORD_AUTH.SHEET);
+  if (!sh || sh.getLastRow() < 2) throw new Error('Hệ thống xác thực chưa được cấu hình.');
+  const h = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);
+  return sh.getRange(2,1,sh.getLastRow()-1,h.length).getValues().map(function(row){
+    const o = {}; h.forEach(function(k,i){ o[k]=row[i]; }); return o;
+  });
+}
+
+function credentialVerifier_(email, pin) {
+  const pepperHex = credentialSecret_('PIN_PEPPER_HEX');
+  const keyBytes = hexBytes_(pepperHex);
+  const bytes = Utilities.computeHmacSha256Signature(String(email).toLowerCase() + ':' + String(pin), keyBytes);
+  return bytes.map(function(b){ const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2); }).join('');
+}
+
+function credentialSecret_(key) {
+  const rows = credentialRows_();
+  const row = rows.find(function(r){ return String(r.user_id || '') === '__SYSTEM__' && String(r.secret_key || '') === String(key); });
+  const value = row ? String(row.secret_value || '').trim() : '';
+  if (!/^[0-9a-f]{64}$/i.test(value)) throw new Error('Cấu hình bảo mật không hợp lệ.');
+  return value;
+}
+
+function hexBytes_(hex) {
+  const out=[]; for(let i=0;i<hex.length;i+=2) out.push(parseInt(hex.slice(i,i+2),16)); return out;
 }
 
 function logPasswordAuth_(action, entityId, detail) {
@@ -59,6 +77,6 @@ function logPasswordAuth_(action, entityId, detail) {
     ensureProductionProperties_();
     const sh = getDb_().getSheetByName(APP.SHEETS.AUDIT || 'AUDIT_LOG');
     if (!sh) return;
-    sh.appendRow(['AUD-' + Utilities.getUuid(), now_(), entityId || '', action, 'AUTH_PASSWORD', entityId || '', JSON.stringify(detail || {})]);
+    sh.appendRow(['AUD-' + Utilities.getUuid(), now_(), entityId || '', action, 'AUTH_PIN', entityId || '', JSON.stringify(detail || {})]);
   } catch (ignored) {}
 }
