@@ -1,6 +1,11 @@
 (function(){
   state.search=state.search||'';
 
+  function canTrackProfiles(){
+    const can=(state.boot&&state.boot.can)||{};
+    return !!(can['ceo.view']||can['admin.people']||can['account.view_all']);
+  }
+
   window.renderApp=function(){
     const u=(state.boot&&state.boot.user)||{};
     const canSync=!!(state.boot&&state.boot.can&&((state.boot.can['ceo.view'])||(state.boot.can['admin.people'])||(state.boot.can['account.view_all'])));
@@ -26,13 +31,30 @@
     if(state.filter!=='ALL')rows=rows.filter(r=>r.trang_thai_thuc_hien===state.filter);
     if(state.province!=='ALL')rows=rows.filter(r=>r.tinh_thanh===state.province);
     const provinces=[...new Set((state.rows||[]).map(r=>r.tinh_thanh).filter(Boolean))].sort();
-    el('content').innerHTML=`<section class="hero"><div><h1>Việc với trường</h1><p>${Number(s.can_lam_hom_nay||0)} trường cần xử lý · ${Number(s.dang_cho_phan_hoi||0)} đang chờ phản hồi</p></div><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></section><section class="filters minimal-filters"><input id="schoolSearch" class="input" placeholder="Tìm trường…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${v}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(p=>`<option ${state.province===p?'selected':''}>${esc(p)}</option>`).join('')}</select></section><section class="cards minimal-cards">${rows.length?rows.map(minimalCard).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
+    const tracking=canTrackProfiles()?'<section id="profileTrackingStrip" style="margin:0 20px 14px;padding:11px 13px;border:1px solid #e5e7eb;border-radius:12px;background:#fafafa;font-size:12px;line-height:1.55;color:#667085">Đang tải theo dõi E-profile…</section>':'';
+    el('content').innerHTML=`<section class="hero"><div><h1>Việc với trường</h1><p>${Number(s.can_lam_hom_nay||0)} trường cần xử lý · ${Number(s.dang_cho_phan_hoi||0)} đang chờ phản hồi</p></div><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></section>${tracking}<section class="filters minimal-filters"><input id="schoolSearch" class="input" placeholder="Tìm trường…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${v}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(p=>`<option ${state.province===p?'selected':''}>${esc(p)}</option>`).join('')}</select></section><section class="cards minimal-cards">${rows.length?rows.map(minimalCard).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
     el('addSchoolBtn').onclick=()=>{if(typeof window.openAddSchool==='function')window.openAddSchool();else toast('Chức năng thêm trường chưa sẵn sàng. Hãy tải lại trang.',true)};
     el('schoolSearch').oninput=e=>{state.search=e.target.value;renderOutreach()};
     el('statusFilter').onchange=e=>{state.filter=e.target.value;renderOutreach()};
     el('provinceFilter').onchange=e=>{state.province=e.target.value;renderOutreach()};
     document.querySelectorAll('.school-card .detail').forEach(b=>b.onclick=()=>{const row=state.rows.find(x=>x.outreach_id===b.closest('.school-card').dataset.id);if(row&&window.openSchoolWorkspace)window.openSchoolWorkspace(row)});
+    if(canTrackProfiles())loadTrackingStrip(false);
   };
+
+  async function loadTrackingStrip(force){
+    const host=document.getElementById('profileTrackingStrip');if(!host)return;
+    if(state.profileTracking&&!force){paintTrackingStrip(state.profileTracking);return;}
+    try{const r=await call('journey','trackingSummary',{});state.profileTracking=r||{};paintTrackingStrip(state.profileTracking);}catch(e){host.textContent='Chưa tải được dữ liệu E-profile.';}
+  }
+
+  function paintTrackingStrip(data){
+    const host=document.getElementById('profileTrackingStrip');if(!host)return;
+    const by=(data&&data.by_user)||[];const prospects=(data&&data.opened_prospects)||[];
+    if(!by.length&&!prospects.length){host.innerHTML='<b style="color:#344054">E-profile</b> · Chưa có lượt gửi được ghi nhận.';return;}
+    const people=by.map(x=>`${esc(x.name||x.user_id)}: <b style="color:#344054">${Number(x.sent||0)} gửi</b> / ${Number(x.opened_links||0)} trường mở`).join(' · ');
+    const recent=prospects.slice(0,4).map(x=>`${esc(x.school_name||'Trường')} — ${esc(x.owner_name||'')}${Number(x.interest_score||0)>=25?' ★':''}`).join(' · ');
+    host.innerHTML=`<div><b style="color:#344054">E-profile</b>${people?' · '+people:''}</div>${recent?`<div style="margin-top:3px">Mở gần đây: ${recent}</div>`:''}`;
+  }
 
   function statusGroup(code){
     code=String(code||'').toUpperCase();
@@ -74,5 +96,6 @@
     document.getElementById('recordDiscovery').onclick=()=>{host.innerHTML='';document.getElementById('discoveryBtn')?.click()};
   }
 
+  window.addEventListener('sunbot-tracking-changed',()=>{state.profileTracking=null;if(state.tab==='outreach'&&canTrackProfiles())loadTrackingStrip(true)});
   const obs=new MutationObserver(()=>simplifyWorkspace());obs.observe(document.documentElement,{childList:true,subtree:true});
 })();
