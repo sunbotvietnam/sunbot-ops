@@ -5,7 +5,7 @@
     ['FORMER','Đã từng triển khai Sunbot'],
     ['CURRENT','Đang triển khai Sunbot']
   ];
-  const ASSETS=[['PROFILE_PUBLIC','Hồ sơ số – Công lập'],['PROFILE_PRIVATE','Hồ sơ số – Tư thục']];
+  const ASSETS=[['PROFILE_PUBLIC','E-profile – Công lập'],['PROFILE_PRIVATE','E-profile – Tư thục']];
 
   function currentRowFromWorkspace(){
     const head=document.querySelector('#workspaceOverlay .workspace-head');
@@ -25,7 +25,7 @@
     const btn=document.createElement('button');btn.id='journeyComposeBtn';btn.className='btn';btn.textContent='✉ Soạn email';
     btn.onclick=()=>openComposer(row);
     toolbar.prepend(btn);
-    const assetBtn=document.createElement('button');assetBtn.id='journeyAssetBtn';assetBtn.className='btn secondary';assetBtn.textContent='🔗 Gửi hồ sơ số';
+    const assetBtn=document.createElement('button');assetBtn.id='journeyAssetBtn';assetBtn.className='btn secondary';assetBtn.textContent='🔗 Gửi E-profile';
     assetBtn.onclick=()=>openComposer(row,true);
     toolbar.insertBefore(assetBtn,btn.nextSibling);
   }
@@ -42,19 +42,19 @@
   function render(p,assetOnly){
     const host=document.getElementById('wsSubpanel');
     host.innerHTML=`<div class="subpanel open"><div class="subpanel-card">
-      <div class="subpanel-head"><div><h3>${assetOnly?'Gửi hồ sơ số':'Soạn email'}</h3><small class="muted">Mục tiêu: hẹn một buổi trao đổi online 30–40 phút.</small></div><button id="journeyClose">×</button></div>
+      <div class="subpanel-head"><div><h3>${assetOnly?'Gửi E-profile':'Soạn email'}</h3><small class="muted">Mục tiêu: hẹn một buổi trao đổi online 30–40 phút.</small></div><button id="journeyClose">×</button></div>
       <div class="form-grid">
         <label>Quan hệ với Nhà trường<select id="journeyScenario" class="input">${SCENARIOS.map(x=>`<option value="${x[0]}" ${x[0]===p.scenario?'selected':''}>${x[1]}</option>`).join('')}</select></label>
-        <label>Hồ sơ số<select id="journeyAsset" class="input">${ASSETS.map(x=>`<option value="${x[0]}" ${x[0]===p.asset.code?'selected':''}>${x[1]}</option>`).join('')}</select></label>
+        <label>E-profile<select id="journeyAsset" class="input">${ASSETS.map(x=>`<option value="${x[0]}" ${x[0]===p.asset.code?'selected':''}>${x[1]}</option>`).join('')}</select></label>
       </div>
-      <div class="row-actions"><a class="btn ghost" id="openAsset" target="_blank" rel="noopener" href="${esc(p.asset.url)}">Mở hồ sơ số</a><button class="btn ghost" id="copyLink">Sao chép link</button><button class="btn ghost" id="copyMessage">Sao chép tin nhắn</button></div>
+      <div class="row-actions"><a class="btn ghost" id="openAsset" target="_blank" rel="noopener" href="${esc(p.asset.url)}">Mở E-profile</a><button class="btn ghost" id="copyLink">Sao chép link ngắn</button><button class="btn ghost" id="copyMessage">Sao chép tin nhắn</button></div>
       ${assetOnly?'':`<label>Tới<input id="journeyTo" class="input" value="${esc(p.to_email||'')}"></label><label>CC<input id="journeyCc" class="input" value="${esc(p.cc_email)}" readonly></label><label>Tiêu đề<input id="journeySubject" class="input" value="${esc(p.subject)}"></label><label>Nội dung email<textarea id="journeyBody" class="input mail-body">${esc(p.body)}</textarea></label>`}
       <div class="row-actions">${assetOnly?'':`<button class="btn" id="journeyGmail">Mở Gmail của tôi</button>`}<button class="btn secondary" id="journeyConfirm">Xác nhận đã gửi</button></div>
     </div></div>`;
     document.getElementById('journeyClose').onclick=()=>host.innerHTML='';
     document.getElementById('journeyScenario').onchange=()=>reload(p.outreach_id,assetOnly);
     document.getElementById('journeyAsset').onchange=()=>reload(p.outreach_id,assetOnly);
-    document.getElementById('copyLink').onclick=()=>copyText(p.asset.url,'Đã sao chép link hồ sơ số.');
+    document.getElementById('copyLink').onclick=()=>copyText(p.asset.url,'Đã sao chép link E-profile.');
     document.getElementById('copyMessage').onclick=()=>copyText(p.message,'Đã sao chép tin nhắn.');
     if(!assetOnly)document.getElementById('journeyGmail').onclick=()=>{
       const to=document.getElementById('journeyTo').value,cc=document.getElementById('journeyCc').value,su=document.getElementById('journeySubject').value,body=document.getElementById('journeyBody').value;
@@ -74,7 +74,7 @@
     if(!confirm('Xác nhận đã gửi nội dung này cho Nhà trường?'))return;
     try{
       const r=await call('journey','logSent',{outreach_id:p.outreach_id,scenario:document.getElementById('journeyScenario').value,asset_code:document.getElementById('journeyAsset').value,channel});
-      document.getElementById('wsSubpanel').innerHTML='';toast(r.message);if(window.refreshOutreach)await window.refreshOutreach(true);
+      document.getElementById('wsSubpanel').innerHTML='';toast(r.message);window.dispatchEvent(new CustomEvent('sunbot-tracking-changed'));if(window.refreshOutreach)await window.refreshOutreach(true);
     }catch(e){toast(e.message,true)}
   }
   async function copyText(text,msg){try{await navigator.clipboard.writeText(text);toast(msg)}catch(e){window.prompt('Sao chép nội dung:',text)}}
