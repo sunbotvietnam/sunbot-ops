@@ -224,7 +224,7 @@ function outreachPrepareEmail_(user, p) {
     cc_email:OUTREACH.CC_EMAIL,
     subject:subject,
     body:body,
-    attachment_note:'Email đã gắn Digital Profile mới theo loại hình trường. Tài liệu bổ sung chỉ gửi khi phù hợp với từng cơ hội.',
+    attachment_note:'Email đã gắn Digital Profile mới theo loại hình trường và attribution của người gửi. Tài liệu bổ sung chỉ gửi khi phù hợp với từng cơ hội.',
     school:row.ten_truong
   };
 }
@@ -345,7 +345,7 @@ function profileAudienceForOutreach_(row) {
   return 'public';
 }
 
-function profileLinkForOutreach_(row) {
+function profileLinkForOutreach_(row,user) {
   const audience = profileAudienceForOutreach_(row);
   const params = [
     'audience=' + encodeURIComponent(audience),
@@ -353,7 +353,12 @@ function profileLinkForOutreach_(row) {
     'from=outreach'
   ];
   if (row.ten_truong) params.push('school=' + encodeURIComponent(String(row.ten_truong)));
-  if (row.outreach_id) params.push('source=' + encodeURIComponent(String(row.outreach_id)));
+  if (user && user.ho_ten) params.push('sender=' + encodeURIComponent(String(user.ho_ten)));
+  if (user && user.email) params.push('sender_email=' + encodeURIComponent(String(user.email)));
+  if (row.outreach_id) {
+    params.push('source=' + encodeURIComponent(String(row.outreach_id)));
+    params.push('lid=' + encodeURIComponent(String(row.outreach_id)));
+  }
   return 'https://sunbotvietnam.github.io/portal/profile-v2/?' + params.join('&');
 }
 
@@ -361,7 +366,7 @@ function bodyForOutreach_(user,row) {
   const intro = 'Kính gửi Ban Giám hiệu ' + row.ten_truong + ',\n\nEm là ' + user.ho_ten + ', phụ trách phát triển thị trường Sunbot tại Công ty Cổ phần Công nghệ Giáo dục Kiro Việt Nam.';
   const about = '\n\nSunbot là giải pháp giáo dục công nghệ dành cho trẻ mầm non, kết hợp chương trình, robot, học liệu, đào tạo giáo viên, tổ chức vận hành và hệ thống quan sát – đánh giá sự phát triển của trẻ.';
   const personal = row.thong_diep_de_xuat ? '\n\nQua tìm hiểu về nhà trường, em xin phép đề xuất hướng trao đổi phù hợp: ' + row.thong_diep_de_xuat : '';
-  const profile = '\n\nEm xin gửi Ban Giám hiệu hồ sơ Sunbot để tiện tham khảo:\n' + profileLinkForOutreach_(row);
+  const profile = '\n\nEm xin gửi Ban Giám hiệu hồ sơ Sunbot để tiện tham khảo:\n' + profileLinkForOutreach_(row,user);
   const close = '\n\nNếu phù hợp, em mong được sắp xếp một buổi trao đổi ngắn để cùng nhà trường làm rõ nhu cầu và lựa chọn phương án triển khai phù hợp trong năm học 2026–2027.\n\nTrân trọng,\n' + user.ho_ten + '\nSunbot – Kiro Việt Nam\nEmail: ' + user.email;
   return intro + about + personal + profile + close;
 }
