@@ -7,7 +7,8 @@ const QUOTATION_V2 = Object.freeze({
     SOURCES: 'V2_NGUON_GIA',
     RIGHTS: 'V2_QUYEN_GIA',
     LOG: 'V2_NHAT_KY_BAO_GIA',
-    CONFIG: 'V2_CAU_HINH_APP'
+    CONFIG: 'V2_CAU_HINH_APP',
+    PRICE_AUDIT: 'V2_NHAT_KY_DUYET_GIA'
   }
 });
 
@@ -21,6 +22,9 @@ function apiSessionQuotation(sessionToken, action, payload) {
     case 'save': return quotationSave_(user, payload);
     case 'history': return quotationHistory_(user, payload);
     case 'approve': return quotationApprove_(user, payload);
+    case 'adminList': return quotationAdminList_(user, payload);
+    case 'adminUpdatePrice': return quotationAdminUpdatePrice_(user, payload);
+    case 'adminPriceHistory': return quotationAdminPriceHistory_(user, payload);
     default: throw new Error('Tác vụ báo giá không hợp lệ.');
   }
 }
@@ -59,6 +63,10 @@ function quotationRoleKey_(user) {
   return 'Sales';
 }
 
+function quotationRequirePriceAdmin_(user) {
+  if (quotationRoleKey_(user) !== 'CEO/Admin') throw new Error('Chỉ CEO/Admin được quyền phê duyệt bảng giá.');
+}
+
 function quotationRights_(user) {
   const roleKey = quotationRoleKey_(user);
   const row = quotationRows_(QUOTATION_V2.SHEETS.RIGHTS).find(function(r){ return String(r['Vai trò']) === roleKey; }) || {};
@@ -78,7 +86,8 @@ function quotationRights_(user) {
     canEditUnitPrice: yes(row['Sửa đơn giá']),
     maxDiscountRate: pct(row['Chiết khấu tối đa']),
     canApprove: yes(row['Duyệt vượt ngưỡng']),
-    canTender: yes(row['Chế độ nhà thầu'])
+    canTender: yes(row['Chế độ nhà thầu']),
+    canApprovePrice: roleKey === 'CEO/Admin'
   };
 }
 
@@ -128,6 +137,7 @@ function quotationPublicPackage_(r, approved) {
     source_id: r['Nguồn chính'] || '',
     confidence: r['Mức tin cậy'] || '',
     price_status: r['Trạng thái giá'] || '',
+    decision: r['Quyết định CEO'] || '',
     approved: !!approved,
     note: r['Ghi chú'] || ''
   };
@@ -147,10 +157,121 @@ function quotationPublicItem_(r, approved) {
     source_id: r['Nguồn chính'] || '',
     confidence: r['Mức tin cậy'] || '',
     price_status: r['Trạng thái giá'] || '',
+    decision: r['Quyết định CEO'] || '',
     approved: !!approved,
     standalone: r['Có thể bán riêng'] || '',
     note: r['Mâu thuẫn / lưu ý'] || ''
   };
+}
+
+function quotationAdminList_(user, payload) {
+  quotationRequirePriceAdmin_(user);
+  const sources = {};
+  quotationRows_(QUOTATION_V2.SHEETS.SOURCES).forEach(function(r){
+    const id = String(r['Mã nguồn'] || r['SourceID'] || r['Mã'] || '').trim();
+    if (id) sources[id] = r;
+  });
+  const packages = quotationRows_(QUOTATION_V2.SHEETS.PACKAGES).map(function(r){
+    const x = quotationPublicPackage_(r, String(r['Quyết định CEO'] || '').trim().toUpperCase() === 'DUYỆT DÙNG');
+    x.entity_type = 'PACKAGE'; x.entity_id = x.package_id; x.source = sources[x.source_id] || null; return x;
+  });
+  const items = quotationRows_(QUOTATION_V2.SHEETS.ITEMS).map(function(r){
+    const x = quotationPublicItem_(r, String(r['Quyết định CEO'] || '').trim().toUpperCase() === 'DUYỆT DÙNG');
+    x.entity_type = 'ITEM'; x.entity_id = x.price_id; x.source = sources[x.source_id] || null; return x;
+  });
+  const filter = String(payload.status || 'ALL').trim().toUpperCase();
+  function keep(x){
+    const d = String(x.decision || '').trim().toUpperCase();
+    if (filter === 'PENDING') return d !== 'DUYỆT DÙNG' && d !== 'KHÔNG DÙNG';
+    if (filter === 'APPROVED') return d === 'DUYỆT DÙNG';
+    if (filter === 'REJECTED') return d === 'KHÔNG DÙNG';
+    return true;
+  }
+  return {packages:packages.filter(keep), items:items.filter(keep), generated_at:now_()};
+}
+
+function quotationEntitySheet_(entityType) {
+  const type = String(entityType || '').trim().toUpperCase();
+  if (type === 'PACKAGE') return {sheetName:QUOTATION_V2.SHEETS.PACKAGES, idHeader:'Mã gói', noteHeader:'Ghi chú'};
+  if (type === 'ITEM') return {sheetName:QUOTATION_V2.SHEETS.ITEMS, idHeader:'Mã giá', noteHeader:'Mâu thuẫn / lưu ý'};
+  throw new Error('Loại giá cần duyệt không hợp lệ.');
+}
+
+function quotationAdminUpdatePrice_(user, payload) {
+  quotationRequirePriceAdmin_(user);
+  const cfg = quotationEntitySheet_(payload.entity_type);
+  const entityId = String(payload.entity_id || '').trim();
+  if (!entityId) throw new Error('Thiếu mã giá cần duyệt.');
+  const allowedDecisions = ['DUYỆT DÙNG','CẦN XÁC NHẬN','KHÔNG DÙNG'];
+  const decision = String(payload.decision || '').trim().toUpperCase();
+  if (!allowedDecisions.includes(decision)) throw new Error('Quyết định giá không hợp lệ.');
+  const ss = quotationSpreadsheet_();
+  const sh = ss.getSheetByName(cfg.sheetName);
+  const values = sh.getDataRange().getValues();
+  if (!values.length) throw new Error('Bảng giá đang trống.');
+  const headers = values[0].map(String);
+  const idxId = headers.indexOf(cfg.idHeader);
+  const idxPrice = headers.indexOf('Giá chưa VAT');
+  const idxPayment = headers.indexOf('Giá thanh toán');
+  const idxDecision = headers.indexOf('Quyết định CEO');
+  const idxStatus = headers.indexOf('Trạng thái giá');
+  const idxNote = headers.indexOf(cfg.noteHeader);
+  if ([idxId,idxDecision].some(function(i){return i < 0;})) throw new Error('Schema bảng giá chưa đủ cột phê duyệt.');
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idxId]).trim() !== entityId) continue;
+    const oldPrice = idxPrice >= 0 ? money_(values[i][idxPrice]) : 0;
+    const oldPayment = idxPayment >= 0 ? money_(values[i][idxPayment]) : 0;
+    const oldDecision = String(values[i][idxDecision] || '');
+    const oldNote = idxNote >= 0 ? String(values[i][idxNote] || '') : '';
+    const newPrice = payload.price_before_tax === '' || payload.price_before_tax === undefined ? oldPrice : money_(payload.price_before_tax);
+    const newPayment = payload.payment_price === '' || payload.payment_price === undefined ? oldPayment : money_(payload.payment_price);
+    if (newPrice < 0 || newPayment < 0) throw new Error('Giá không được âm.');
+    if (idxPrice >= 0) sh.getRange(i+1, idxPrice+1).setValue(newPrice);
+    if (idxPayment >= 0) sh.getRange(i+1, idxPayment+1).setValue(newPayment);
+    sh.getRange(i+1, idxDecision+1).setValue(decision);
+    if (idxStatus >= 0) sh.getRange(i+1, idxStatus+1).setValue(decision === 'DUYỆT DÙNG' ? 'HIỆN HÀNH' : (decision === 'KHÔNG DÙNG' ? 'LOẠI' : 'CẦN RÀ SOÁT'));
+    const decisionNote = String(payload.decision_note || '').trim();
+    if (idxNote >= 0 && decisionNote) sh.getRange(i+1, idxNote+1).setValue(decisionNote);
+    quotationPriceAuditAppend_(ss, {
+      entity_type:String(payload.entity_type || '').toUpperCase(), entity_id:entityId,
+      old_price:oldPrice, new_price:newPrice, old_payment:oldPayment, new_payment:newPayment,
+      old_decision:oldDecision, new_decision:decision,
+      old_note:oldNote, decision_note:decisionNote,
+      user:user
+    });
+    return {ok:true, entity_type:String(payload.entity_type || '').toUpperCase(), entity_id:entityId, decision:decision, price_before_tax:newPrice, payment_price:newPayment, updated_at:now_()};
+  }
+  throw new Error('Không tìm thấy mã giá cần duyệt.');
+}
+
+function quotationPriceAuditSheet_(ss) {
+  let sh = ss.getSheetByName(QUOTATION_V2.SHEETS.PRICE_AUDIT);
+  if (!sh) {
+    sh = ss.insertSheet(QUOTATION_V2.SHEETS.PRICE_AUDIT);
+    sh.appendRow(['AuditID','Thời điểm','Email người duyệt','Người duyệt','Loại','Mã giá','Giá cũ chưa VAT','Giá mới chưa VAT','Giá thanh toán cũ','Giá thanh toán mới','Quyết định cũ','Quyết định mới','Ghi chú cũ','Ghi chú quyết định']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function quotationPriceAuditAppend_(ss, a) {
+  quotationPriceAuditSheet_(ss).appendRow([
+    'PA-' + Utilities.getUuid(), now_(), a.user.email || '', a.user.ho_ten || a.user.user_id || '',
+    a.entity_type, a.entity_id, a.old_price, a.new_price, a.old_payment, a.new_payment,
+    a.old_decision, a.new_decision, a.old_note, a.decision_note
+  ]);
+}
+
+function quotationAdminPriceHistory_(user, payload) {
+  quotationRequirePriceAdmin_(user);
+  const ss = quotationSpreadsheet_();
+  const sh = quotationPriceAuditSheet_(ss);
+  const values = sh.getDataRange().getDisplayValues();
+  if (values.length <= 1) return [];
+  const headers = values[0].map(String);
+  return values.slice(1).filter(function(r){ return r.some(function(v){return String(v||'').trim()!=='';}); }).map(function(r){
+    const o={}; headers.forEach(function(h,i){o[h]=r[i]||'';}); return o;
+  }).slice(-300).reverse();
 }
 
 function quotationPreview_(user, payload) {
@@ -195,26 +316,10 @@ function quotationSave_(user, payload) {
   const validDays = Number(quotationConfig_().DEFAULT_QUOTE_VALID_DAYS || 30);
   const expiry = new Date(); expiry.setDate(expiry.getDate() + validDays);
   sh.appendRow([
-    quoteId,
-    Number(payload.version || 1),
-    now_(),
-    user.ho_ten || user.user_id,
-    user.email || '',
-    payload.account_id || payload.opportunity_id || '',
-    clientName,
-    payload.client_type || '',
-    preview.package_id,
-    JSON.stringify(payload.config || {}),
-    preview.subtotal,
-    preview.discount_rate,
-    preview.final_amount,
-    status,
-    '',
-    '',
-    Utilities.formatDate(expiry, APP.TZ, 'yyyy-MM-dd'),
-    '',
-    payload.notes || '',
-    preview.source_id
+    quoteId, Number(payload.version || 1), now_(), user.ho_ten || user.user_id, user.email || '',
+    payload.account_id || payload.opportunity_id || '', clientName, payload.client_type || '', preview.package_id,
+    JSON.stringify(payload.config || {}), preview.subtotal, preview.discount_rate, preview.final_amount, status,
+    '', '', Utilities.formatDate(expiry, APP.TZ, 'yyyy-MM-dd'), '', payload.notes || '', preview.source_id
   ]);
   return {ok:true, quote_id:quoteId, status:status, preview:preview};
 }
