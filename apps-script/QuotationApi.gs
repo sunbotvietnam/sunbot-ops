@@ -61,7 +61,7 @@ function quotationRoleKey_(user) {
 
 function quotationRights_(user) {
   const roleKey = quotationRoleKey_(user);
-  const row = quotationRows_(QUOTATION_V2.SHEETS.RIGHTS).find(function(r){ return String(r['Vai trò']) === roleKey; }); || {};
+  const row = quotationRows_(QUOTATION_V2.SHEETS.RIGHTS).find(function(r){ return String(r['Vai trò']) === roleKey; }) || {};
   function yes(v){ return String(v || '').toUpperCase() === 'TRUE'; }
   function pct(v){
     const raw = String(v || '').replace('%','').replace(',','.').trim();
