@@ -20,6 +20,7 @@ function handlePagesBridge_(e){
     else if(mode==='outreach') result=apiSessionOutreach(token,String(p.subaction||''),payload);
     else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspaceSafe(token,String(p.subaction||''),payload);
     else if(mode==='outreachCreate') result=apiSessionOutreachCreate(token,payload);
+    else if(mode==='quotation') result=apiSessionQuotation(token,String(p.subaction||''),payload);
     else throw new Error('Tác vụ GitHub Pages không hợp lệ.');
     return pagesBridgeHtml_(requestId,result,'');
   }catch(err){return pagesBridgeHtml_(requestId,null,safeErrorMessage_(err));}
