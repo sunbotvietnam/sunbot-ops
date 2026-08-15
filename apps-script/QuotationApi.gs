@@ -100,7 +100,7 @@ function quotationCatalog_(user, payload) {
   const allPackages = quotationRows_(QUOTATION_V2.SHEETS.PACKAGES);
   const allItems = quotationRows_(QUOTATION_V2.SHEETS.ITEMS);
   const approved = function(r){ return String(r['Quyết định CEO'] || '').trim().toUpperCase() === 'DUYỆT DÙNG'; };
-  const pendingAllowed = rights.role === 'CEO/Admin' || rights.role === 'Leader';
+  const pendingAllowed = rights.role === 'CEO/Admin';
   const packages = allPackages.filter(function(r){ return approved(r) || pendingAllowed; }).map(function(r){ return quotationPublicPackage_(r, approved(r)); });
   const items = allItems.filter(function(r){ return approved(r) || pendingAllowed; }).map(function(r){ return quotationPublicItem_(r, approved(r)); });
   return {
@@ -161,7 +161,7 @@ function quotationPreview_(user, payload) {
   const row = quotationRows_(QUOTATION_V2.SHEETS.PACKAGES).find(function(r){ return String(r['Mã gói']) === packageId; });
   if (!row) throw new Error('Không tìm thấy gói giá đã chọn.');
   const isApproved = String(row['Quyết định CEO'] || '').trim().toUpperCase() === 'DUYỆT DÙNG';
-  if (!isApproved && rights.role !== 'CEO/Admin' && rights.role !== 'Leader') throw new Error('Gói giá này chưa được CEO duyệt để sử dụng.');
+  if (!isApproved && rights.role !== 'CEO/Admin') throw new Error('Gói giá này chưa được CEO duyệt để sử dụng.');
   const base = money_(row['Giá chưa VAT']) || money_(row['Giá thanh toán']);
   const requestedDiscount = Number(payload.discount_rate || 0);
   if (!isFinite(requestedDiscount) || requestedDiscount < 0) throw new Error('Chiết khấu không hợp lệ.');
