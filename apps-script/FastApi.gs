@@ -13,8 +13,7 @@ function apiSessionFast(sessionToken, action, payload) {
 }
 
 function fastLoad_(user, payload) {
-  // Không seed/sync ở request mở app. Login và render phải luôn nhanh;
-  // việc seed ban đầu chạy qua syncSafe ở request riêng có timeout dài.
+  // Render from a compact cached payload. Secondary modules stay lazy-loaded.
   const force = !!payload.force;
   const key = FAST_API.KEY_PREFIX + String(user.user_id);
   const cache = CacheService.getScriptCache();
@@ -25,7 +24,8 @@ function fastLoad_(user, payload) {
     }
   }
   const boot = bootstrapSession_(user);
-  const rows = enrichOutreachOwners_(outreachList_(user, {}));
+  let rows = enrichOutreachOwners_(outreachList_(user, {}));
+  rows = enrichOutreachNextActions_(user, rows);
   const summary = outreachSummaryFromRows_(rows);
   const dashboard = roleDashboardFromRows_(user, summary, rows);
   const result = {boot:boot, rows:rows, summary:summary, dashboard:dashboard, cached:false, generated_at:now_(), needs_seed:rows.length===0};
@@ -34,7 +34,8 @@ function fastLoad_(user, payload) {
 }
 
 function fastOutreach_(user, payload) {
-  const rows = enrichOutreachOwners_(outreachList_(user, payload || {}));
+  let rows = enrichOutreachOwners_(outreachList_(user, payload || {}));
+  rows = enrichOutreachNextActions_(user, rows);
   const summary = outreachSummaryFromRows_(rows);
   return {rows:rows, summary:summary, dashboard:roleDashboardFromRows_(user, summary, rows), generated_at:now_(), needs_seed:rows.length===0};
 }
@@ -70,6 +71,39 @@ function enrichOutreachOwners_(rows) {
   });
 }
 
+/**
+ * CONG_VIEC is canonical for future action/deadline. Outreach research guidance is
+ * kept on the record but must not masquerade as the operational commitment.
+ */
+function enrichOutreachNextActions_(user, rows) {
+  let tasks = [];
+  try {
+    tasks = getAll_(APP.SHEETS.TASKS).filter(function(t){
+      const status = String(t.trang_thai || '').toUpperCase();
+      if (['DONE','CANCELLED'].includes(status)) return false;
+      return !!(user.permissions['task.view_all'] || String(t.owner_user_id) === String(user.user_id));
+    });
+  } catch (ignored) {}
+  tasks.sort(taskSort_);
+  const byId = {};
+  const byAccount = {};
+  tasks.forEach(function(t){
+    const workId = String(t.work_id || '');
+    const accountId = String(t.account_id || '');
+    if (workId) byId[workId] = t;
+    if (accountId && !byAccount[accountId]) byAccount[accountId] = t;
+  });
+  return (rows || []).map(function(r){
+    const copy = Object.assign({}, r);
+    const task = byId[String(r.work_id||'')] || byAccount[String(r.account_id||'')] || null;
+    copy.next_action = task ? String(task.hanh_dong_tiep || task.ten_cong_viec || '').trim() : '';
+    copy.next_action_date = task ? String(task.ngay_hanh_dong_tiep || task.han_hoan_thanh || '').trim() : '';
+    copy.next_action_work_id = task ? String(task.work_id || '') : '';
+    copy.next_action_source = task ? 'CONG_VIEC' : '';
+    return copy;
+  });
+}
+
 function outreachSummaryFromRows_(rows) {
   const counts = {};
   const byOwner = {};
@@ -88,13 +122,13 @@ function outreachSummaryFromRows_(rows) {
     if (s === 'DANG_CHO_PHAN_HOI') o.waiting++;
     if (['DA_PHAN_HOI','DA_HEN_TRAO_DOI','DA_TAO_CO_HOI'].includes(s)) o.progress++;
     if (s === 'CHAM_SOC_ACCOUNT') o.customer++;
-    const due = parseDate_(r.ngay_theo_doi_lai);
-    if (due && due < today && !['CHAM_SOC_ACCOUNT','TAM_DUNG','THEO_DOI'].includes(s)) { overdue++; o.overdue++; }
+    const due = parseDate_(r.next_action_date);
+    if (due && due < today && !['TAM_DUNG','THEO_DOI'].includes(s)) { overdue++; o.overdue++; }
     const active = !['TAM_DUNG','THEO_DOI'].includes(s);
-    const hasNext = String(r.hanh_dong_de_xuat || '').trim();
-    const hasDate = String(r.ngay_theo_doi_lai || '').trim();
+    const hasNext = String(r.next_action || '').trim();
+    const hasDate = String(r.next_action_date || '').trim();
     if (active && !hasNext) { missingNextAction++; o.missing_next++; }
-    if (active && !hasDate && s !== 'CHAM_SOC_ACCOUNT') missingNextDate++;
+    if (active && hasNext && !hasDate) missingNextDate++;
   });
   const total = (rows || []).length;
   const todo = (counts.CAN_GUI||0)+(counts.CAN_XAC_MINH||0)+(counts.CAN_XAC_MINH_DU_LIEU||0)+(counts.TIEP_CAN_CHIEN_LUOC||0)+(counts.DANG_SOAN||0);
