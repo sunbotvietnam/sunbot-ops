@@ -31,17 +31,18 @@
   window.renderOutreach=function(){
     const s=state.summary||{};let rows=(state.rows||[]).slice();
     const q=String(state.search||'').trim().toLowerCase();
-    if(q)rows=rows.filter(r=>[r.ten_truong,r.tinh_thanh,r.owner_name,r.hanh_dong_de_xuat,r.dien_thoai_dau_moi,r.email_truong].join(' ').toLowerCase().includes(q));
+    if(q)rows=rows.filter(r=>[r.ten_truong,r.tinh_thanh,r.owner_name,r.next_action,r.dien_thoai_dau_moi,r.email_truong].join(' ').toLowerCase().includes(q));
     if(state.filter!=='ALL')rows=rows.filter(r=>r.trang_thai_thuc_hien===state.filter);
     if(state.province!=='ALL')rows=rows.filter(r=>r.tinh_thanh===state.province);
     if(isCeoView()&&state.owner!=='ALL')rows=rows.filter(r=>String(r.owner_user_id||'')===state.owner);
     rows=applySpecialRows_(rows,state.pipelineSpecial);
     const provinces=[...new Set((state.rows||[]).map(r=>r.tinh_thanh).filter(Boolean))].sort();
     const owners=(s.by_owner||[]).filter(x=>x.user_id);
+    const command=renderRoleCommand_();
     const ceoSummary=isCeoView()?renderCeoSummary(s):'';
     const tracking=isCeoView()?'<section id="profileTrackingStrip" class="ceo-tracking-strip">Đang tải theo dõi E-profile…</section>':'';
     const ownerFilter=isCeoView()?`<select id="ownerFilter"><option value="ALL">Tất cả người phụ trách</option>${owners.map(o=>`<option value="${esc(o.user_id)}" ${state.owner===o.user_id?'selected':''}>${esc(shortOwnerName(o.name))} · ${Number(o.total||0)} trường</option>`).join('')}</select>`:'';
-    el('content').innerHTML=`<section class="hero"><div><h1>Việc với trường</h1><p>${Number(s.can_lam_hom_nay||0)} trường cần xử lý · ${Number(s.dang_cho_phan_hoi||0)} đang chờ phản hồi${Number(s.overdue||0)?' · '+Number(s.overdue)+' quá hạn':''}</p></div><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></section>${ceoSummary}${tracking}<section class="filters minimal-filters ${isCeoView()?'ceo-filters':''}"><input id="schoolSearch" class="input" placeholder="Tìm trường…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${v}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(p=>`<option ${state.province===p?'selected':''}>${esc(p)}</option>`).join('')}</select>${ownerFilter}</section><section class="cards minimal-cards">${rows.length?rows.map(minimalCard).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
+    el('content').innerHTML=`<section class="hero compact-hero"><div><h1>Trường & việc tiếp theo</h1><p>${Number(s.total||0)} trường · ${Number(s.overdue||0)} quá hạn · ${Number(s.dang_cho_phan_hoi||0)} chờ phản hồi</p></div><div class="hero-actions"><span class="freshness">${esc(freshnessText_())}</span><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></div></section>${command}${ceoSummary}${tracking}<section class="filters minimal-filters ${isCeoView()?'ceo-filters':''}"><input id="schoolSearch" class="input" placeholder="Tìm trường / việc tiếp theo…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${v}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(p=>`<option ${state.province===p?'selected':''}>${esc(p)}</option>`).join('')}</select>${ownerFilter}</section><section class="cards minimal-cards">${rows.length?rows.map(minimalCard).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
     el('addSchoolBtn').onclick=()=>{if(typeof window.openAddSchool==='function')window.openAddSchool();else toast('Chức năng thêm trường chưa sẵn sàng. Hãy tải lại trang.',true)};
     el('schoolSearch').oninput=e=>{state.search=e.target.value;renderOutreach()};
     el('statusFilter').onchange=e=>{state.filter=e.target.value;state.pipelineSpecial='';renderOutreach()};
@@ -53,10 +54,30 @@
     if(isCeoView())loadTrackingStrip(false);
   };
 
+  function renderRoleCommand_(){
+    const d=state.dashboard||{};const g=d.guide||{};const e=d.exceptions||{};
+    if(!g.title)return '';
+    const primary=isCeoView()
+      ? `<div class="role-exceptions"><button data-pipeline-filter="OVERDUE"><b>${Number(e.overdue||0)}</b><span>Quá hạn</span></button><button data-pipeline-filter="MISSING_NEXT"><b>${Number(e.missing_next_action||0)}</b><span>Thiếu việc tiếp theo</span></button><button data-pipeline-filter="MISSING_DATE"><b>${Number(e.missing_next_date||0)}</b><span>Thiếu ngày</span></button></div>`
+      : `<div class="role-exceptions"><button data-pipeline-filter="TODO"><b>${Number((state.summary||{}).can_lam_hom_nay||0)}</b><span>Cần xử lý</span></button><button data-pipeline-filter="OVERDUE"><b>${Number(e.overdue||0)}</b><span>Quá hạn</span></button><button data-pipeline-filter="WAITING"><b>${Number(e.waiting||0)}</b><span>Chờ phản hồi</span></button></div>`;
+    const bullets=(g.bullets||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+    return `<section class="role-command"><div class="role-command-copy"><strong>${esc(g.title)}</strong><span>${esc(g.intro||'')}</span></div>${primary}<details class="quick-guide"><summary>Hướng dẫn nhanh</summary><ul>${bullets}</ul></details></section>`;
+  }
+
+  function freshnessText_(){
+    if(!state.generatedAt)return 'Đang đồng bộ';
+    const d=new Date(String(state.generatedAt).replace(' ','T'));
+    if(isNaN(d))return 'Dữ liệu vừa tải';
+    const mins=Math.max(0,Math.round((Date.now()-d.getTime())/60000));
+    if(mins<=1)return 'Dữ liệu vừa cập nhật';
+    if(mins<60)return `Cập nhật ${mins} phút trước`;
+    return 'Dữ liệu có thể đã cũ · bấm ↻ nếu cần';
+  }
+
   function renderCeoSummary(s){
     const p=s.pipeline||{};const owners=s.by_owner||[];
     const ownerPills=owners.filter(o=>o.user_id).map(o=>`<button class="owner-pill ${state.owner===o.user_id?'active':''}" data-owner-filter="${esc(o.user_id)}"><b>${esc(shortOwnerName(o.name))}</b><span>${Number(o.total||0)} trường${Number(o.overdue||0)?' · '+Number(o.overdue)+' quá hạn':''}</span></button>`).join('');
-    return `<section class="ceo-school-summary"><div class="ceo-kpis"><button class="${!state.pipelineSpecial&&state.filter==='ALL'?'active':''}" data-pipeline-filter="ALL"><b>${Number(s.total||0)}</b><span>Tổng trường</span></button><button class="${state.pipelineSpecial==='TODO'?'active':''}" data-pipeline-filter="TODO"><b>${Number(p.todo||0)}</b><span>Cần xử lý</span></button><button class="${state.pipelineSpecial==='OVERDUE'?'active':''}" data-pipeline-filter="OVERDUE"><b>${Number(s.overdue||0)}</b><span>Quá hạn</span></button><button class="${state.filter==='DANG_CHO_PHAN_HOI'?'active':''}" data-pipeline-filter="WAITING"><b>${Number(p.waiting||0)}</b><span>Chờ phản hồi</span></button><button class="${state.pipelineSpecial==='PROGRESS'?'active':''}" data-pipeline-filter="PROGRESS"><b>${Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button><button class="${state.filter==='CHAM_SOC_ACCOUNT'?'active':''}" data-pipeline-filter="CUSTOMER"><b>${Number(p.customer||0)}</b><span>Đang hợp tác</span></button></div>${ownerPills?`<div class="owner-pills"><span class="owner-label">Phụ trách</span><button class="owner-pill ${state.owner==='ALL'?'active':''}" data-owner-filter="ALL"><b>Tất cả</b></button>${ownerPills}</div>`:''}</section>`;
+    return `<section class="ceo-school-summary"><div class="ceo-kpis exception-kpis"><button class="${state.pipelineSpecial==='OVERDUE'?'active':''}" data-pipeline-filter="OVERDUE"><b>${Number(s.overdue||0)}</b><span>Quá hạn</span></button><button class="${state.pipelineSpecial==='MISSING_NEXT'?'active':''}" data-pipeline-filter="MISSING_NEXT"><b>${Number(s.missing_next_action||0)}</b><span>Thiếu bước tiếp theo</span></button><button class="${state.pipelineSpecial==='MISSING_DATE'?'active':''}" data-pipeline-filter="MISSING_DATE"><b>${Number(s.missing_next_date||0)}</b><span>Thiếu ngày cam kết</span></button><button class="${state.filter==='DANG_CHO_PHAN_HOI'?'active':''}" data-pipeline-filter="WAITING"><b>${Number(p.waiting||0)}</b><span>Chờ phản hồi</span></button><button class="${state.pipelineSpecial==='PROGRESS'?'active':''}" data-pipeline-filter="PROGRESS"><b>${Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button><button class="${state.filter==='CHAM_SOC_ACCOUNT'?'active':''}" data-pipeline-filter="CUSTOMER"><b>${Number(p.customer||0)}</b><span>Đang hợp tác</span></button></div>${ownerPills?`<div class="owner-pills"><span class="owner-label">Phụ trách</span><button class="owner-pill ${state.owner==='ALL'?'active':''}" data-owner-filter="ALL"><b>Tất cả</b></button>${ownerPills}</div>`:''}</section>`;
   }
 
   function applyPipelineFilter(kind){
@@ -80,8 +101,10 @@
     }
     if(kind==='OVERDUE'){
       const today=new Date();today.setHours(0,0,0,0);
-      return rows.filter(r=>{const d=parseLooseDate(r.ngay_theo_doi_lai);return d&&d<today&&!['CHAM_SOC_ACCOUNT','TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||''));});
+      return rows.filter(r=>{const d=parseLooseDate(r.next_action_date);return d&&d<today&&!['TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||''));});
     }
+    if(kind==='MISSING_NEXT')return rows.filter(r=>!String(r.next_action||'').trim()&&!['TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||'')));
+    if(kind==='MISSING_DATE')return rows.filter(r=>String(r.next_action||'').trim()&&!String(r.next_action_date||'').trim()&&!['TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||'')));
     return rows;
   }
 
@@ -106,7 +129,6 @@
 
   function shortOwnerName(name){
     const s=String(name||'').trim();if(!s)return '';
-    if(/nhung/i.test(s))return 'Nhung';if(/dung/i.test(s))return 'Dung';if(/thu/i.test(s))return 'Thu';if(/vân|van/i.test(s))return 'Vân';
     const parts=s.split(/\s+/);return parts[parts.length-1]||s;
   }
 
@@ -123,9 +145,12 @@
   function minimalCard(r){
     const status=STATUS_LABELS[r.trang_thai_thuc_hien]||r.trang_thai_thuc_hien||'Chưa xác định';
     const group=statusGroup(r.trang_thai_thuc_hien);
-    const due=r.ngay_theo_doi_lai?`<small>Hạn: ${esc(r.ngay_theo_doi_lai)}</small>`:'';
+    const action=String(r.next_action||'').trim();
+    const date=String(r.next_action_date||'').trim();
+    const due=date?`<span class="next-date">${esc(date)}</span>`:'<span class="next-date missing">Chưa có ngày</span>';
+    const next=action?`<div class="next canonical-next"><span class="next-label">Việc tiếp theo</span><b>${esc(action)}</b>${due}</div>`:`<div class="next canonical-next missing-next"><span class="next-label">Việc tiếp theo</span><b>Chưa có cam kết tiếp theo</b></div>`;
     const owner=isCeoView()&&r.owner_name?`<span class="badge owner-badge">${esc(shortOwnerName(r.owner_name))}</span>`:'';
-    return `<article class="school-card minimal-card status-${group}" data-id="${esc(r.outreach_id)}"><div class="card-head"><div><div class="badges"><span class="badge">${esc(r.tinh_thanh||'')}</span>${owner}</div><h3>${esc(r.ten_truong)}</h3><span class="status-chip status-chip-${group}">${esc(status)}</span></div></div>${r.hanh_dong_de_xuat?`<div class="next"><b>Tiếp theo:</b> ${esc(r.hanh_dong_de_xuat)} ${due}</div>`:''}<div class="actions"><button class="btn detail">Mở hồ sơ</button></div></article>`;
+    return `<article class="school-card minimal-card status-${group} ${!action?'needs-next':''}" data-id="${esc(r.outreach_id)}"><div class="card-head"><div><div class="badges"><span class="badge">${esc(r.tinh_thanh||'')}</span>${owner}</div><h3>${esc(r.ten_truong)}</h3><span class="status-chip status-chip-${group}">${esc(status)}</span></div></div>${next}<div class="actions"><button class="btn detail">Mở hồ sơ</button></div></article>`;
   }
 
   function simplifyWorkspace(){
