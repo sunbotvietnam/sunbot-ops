@@ -27,14 +27,16 @@ function fastLoad_(user, payload) {
   const boot = bootstrapSession_(user);
   const rows = enrichOutreachOwners_(outreachList_(user, {}));
   const summary = outreachSummaryFromRows_(rows);
-  const result = {boot:boot, rows:rows, summary:summary, cached:false, generated_at:now_(), needs_seed:rows.length===0};
+  const dashboard = roleDashboardFromRows_(user, summary, rows);
+  const result = {boot:boot, rows:rows, summary:summary, dashboard:dashboard, cached:false, generated_at:now_(), needs_seed:rows.length===0};
   try { cache.put(key, JSON.stringify(result), FAST_API.CACHE_SECONDS); } catch (ignored) {}
   return result;
 }
 
 function fastOutreach_(user, payload) {
   const rows = enrichOutreachOwners_(outreachList_(user, payload || {}));
-  return {rows:rows, summary:outreachSummaryFromRows_(rows), generated_at:now_(), needs_seed:rows.length===0};
+  const summary = outreachSummaryFromRows_(rows);
+  return {rows:rows, summary:summary, dashboard:roleDashboardFromRows_(user, summary, rows), generated_at:now_(), needs_seed:rows.length===0};
 }
 
 function fastTasks_(user, payload) {
@@ -73,11 +75,13 @@ function outreachSummaryFromRows_(rows) {
   const byOwner = {};
   const today = startOfDay_(new Date());
   let overdue = 0;
+  let missingNextAction = 0;
+  let missingNextDate = 0;
   (rows || []).forEach(function(r){
     const s = String(r.trang_thai_thuc_hien || '');
     counts[s] = (counts[s] || 0) + 1;
     const ownerId = String(r.owner_user_id || '');
-    if (!byOwner[ownerId]) byOwner[ownerId] = {user_id:ownerId,name:String(r.owner_name||ownerId||'Chưa giao'),total:0,todo:0,waiting:0,progress:0,customer:0,overdue:0};
+    if (!byOwner[ownerId]) byOwner[ownerId] = {user_id:ownerId,name:String(r.owner_name||ownerId||'Chưa giao'),total:0,todo:0,waiting:0,progress:0,customer:0,overdue:0,missing_next:0};
     const o = byOwner[ownerId];
     o.total++;
     if (['CAN_GUI','CAN_XAC_MINH','CAN_XAC_MINH_DU_LIEU','TIEP_CAN_CHIEN_LUOC','DANG_SOAN'].includes(s)) o.todo++;
@@ -86,6 +90,11 @@ function outreachSummaryFromRows_(rows) {
     if (s === 'CHAM_SOC_ACCOUNT') o.customer++;
     const due = parseDate_(r.ngay_theo_doi_lai);
     if (due && due < today && !['CHAM_SOC_ACCOUNT','TAM_DUNG','THEO_DOI'].includes(s)) { overdue++; o.overdue++; }
+    const active = !['TAM_DUNG','THEO_DOI'].includes(s);
+    const hasNext = String(r.hanh_dong_de_xuat || '').trim();
+    const hasDate = String(r.ngay_theo_doi_lai || '').trim();
+    if (active && !hasNext) { missingNextAction++; o.missing_next++; }
+    if (active && !hasDate && s !== 'CHAM_SOC_ACCOUNT') missingNextDate++;
   });
   const total = (rows || []).length;
   const todo = (counts.CAN_GUI||0)+(counts.CAN_XAC_MINH||0)+(counts.CAN_XAC_MINH_DU_LIEU||0)+(counts.TIEP_CAN_CHIEN_LUOC||0)+(counts.DANG_SOAN||0);
@@ -103,9 +112,60 @@ function outreachSummaryFromRows_(rows) {
     da_gui:(rows || []).filter(function(r){return String(r.ngay_gui||'').trim();}).length,
     theo_doi:counts.THEO_DOI||0,
     overdue:overdue,
+    missing_next_action:missingNextAction,
+    missing_next_date:missingNextDate,
     pipeline:{todo:todo,waiting:waiting,responded:responded,meeting:meeting,opportunity:opportunity,customer:customer},
     by_owner:Object.keys(byOwner).map(function(k){return byOwner[k];}).sort(function(a,b){return b.total-a.total;}),
     counts:counts
+  };
+}
+
+function roleDashboardFromRows_(user, summary, rows) {
+  const roles = (user.roles || []).map(function(x){ return String(x || '').toUpperCase(); });
+  const canManage = !!(user.permissions && (user.permissions['ceo.view'] || user.permissions['admin.people'] || user.permissions['account.view_all']));
+  let roleType = canManage ? 'CEO_ADMIN' : 'MARKET_SALES';
+  const joined = roles.join(' ');
+  if (!canManage && /(TECH|KY_THUAT|KỸ_THUẬT)/.test(joined)) roleType = 'TECHNICAL';
+  else if (!canManage && /(TEACH|GIAO_VIEN|GIÁO_VIÊN)/.test(joined)) roleType = 'TEACHER';
+  else if (!canManage && /(OPS|VAN_HANH|VẬN_HÀNH|SCHOOL_OPS)/.test(joined)) roleType = 'SCHOOL_OPS';
+
+  const guides = {
+    CEO_ADMIN: {
+      title:'Điều hành hôm nay',
+      intro:'Ưu tiên ngoại lệ và quyết định. Không cần đọc toàn bộ danh sách nếu các cam kết đang đúng hạn.',
+      bullets:['Xử lý trường/quy trình quá hạn trước.','Mọi trường đang theo phải có người phụ trách và bước tiếp theo rõ.','Theo movement và chất lượng follow-up, không đánh giá đội ngũ chỉ bằng số lần gửi/gọi.']
+    },
+    MARKET_SALES: {
+      title:'Việc của tôi hôm nay',
+      intro:'Mỗi trường đang theo phải kết thúc bằng một kết quả thực tế và một cam kết tiếp theo.',
+      bullets:['Gửi hồ sơ không phải là kết quả cuối; mục tiêu là tạo đối thoại hoặc học được thông tin có giá trị.','Sau mỗi trao đổi: ghi kết quả + việc tiếp theo + ngày thực hiện.','Nếu trường chưa phù hợp, ghi rõ lý do và thời điểm/nội dung nên quay lại.']
+    },
+    SCHOOL_OPS: {
+      title:'Điều phối trường hôm nay',
+      intro:'Ưu tiên trường có mốc triển khai, dữ liệu thiếu hoặc đầu việc phối hợp sắp đến hạn.',
+      bullets:['Mỗi việc phối hợp phải có owner và ngày xử lý.','Ghi sự kiện thực tế vào Timeline; không dùng Audit Log như nhật ký công việc.','Đưa ngoại lệ cần quyết định lên CEO thay vì để nằm trong ghi chú.']
+    },
+    TEACHER: {
+      title:'Công việc giảng dạy hôm nay',
+      intro:'Chỉ tập trung lớp/việc được giao, bằng chứng cần nộp và ngoại lệ cần báo.',
+      bullets:['Không nhập trường CRM/thương mại không liên quan.','Báo issue bằng sự kiện, bằng chứng và bước xử lý tiếp theo.','Hoàn thành phải có kết quả, không chỉ ghi “đã làm”.']
+    },
+    TECHNICAL: {
+      title:'Hỗ trợ kỹ thuật hôm nay',
+      intro:'Mỗi case mở cần người giữ hiện tại, bằng chứng, trạng thái và bước tiếp theo có ngày.',
+      bullets:['Không đóng case khi chưa có resolution/return state rõ.','Yêu cầu ảnh/video trước khi nhận robot nếu cần chẩn đoán từ xa.','Thay đổi holder/trạng thái phải có audit trail.']
+    }
+  };
+  return {
+    role_type:roleType,
+    guide:guides[roleType],
+    exceptions:{
+      overdue:Number(summary.overdue||0),
+      missing_next_action:Number(summary.missing_next_action||0),
+      missing_next_date:Number(summary.missing_next_date||0),
+      waiting:Number(summary.dang_cho_phan_hoi||0),
+      active_rows:(rows||[]).filter(function(r){return !['TAM_DUNG','THEO_DOI'].includes(String(r.trang_thai_thuc_hien||''));}).length
+    }
   };
 }
 
