@@ -30,6 +30,14 @@
     });
   }
 
+  function applyFastState(data){
+    state.boot=data.boot||state.boot;
+    state.summary=data.summary||{};
+    state.dashboard=data.dashboard||{};
+    state.rows=data.rows||[];
+    state.generatedAt=data.generated_at||'';
+  }
+
   async function seedIfNeeded(data){
     if(!data||!data.needs_seed)return;
     const can=data.boot&&data.boot.can||{};
@@ -41,9 +49,7 @@
     try{
       await longBridge('syncSafe','sync',{},state.token,120000);
       const fresh=await call('fast','load',{force:true});
-      state.boot=fresh.boot||state.boot;
-      state.summary=fresh.summary||{};
-      state.rows=fresh.rows||[];
+      applyFastState(fresh);
       renderContent();
       toast('Đã chuẩn bị xong danh sách trường.');
     }catch(err){
@@ -55,9 +61,7 @@
   window.loadApp=async function(){
     try{
       const data=await call('fast','load',{});
-      state.boot=data.boot;
-      state.summary=data.summary||{};
-      state.rows=data.rows||[];
+      applyFastState(data);
       state.tasks=[];
       state.tasksLoaded=false;
       renderApp();
@@ -89,9 +93,7 @@
   window.refreshOutreach=async function(force){
     try{
       const data=await call('fast','load',{force:!!force});
-      state.boot=data.boot||state.boot;
-      state.summary=data.summary||{};
-      state.rows=data.rows||[];
+      applyFastState(data);
       if(state.tab==='outreach')renderOutreach();
       if(data.needs_seed)seedIfNeeded(data);
     }catch(e){toast(e.message,true);}
