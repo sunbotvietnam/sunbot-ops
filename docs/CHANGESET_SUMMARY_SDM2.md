@@ -1,0 +1,1 @@
+SDM2 adds Admin-managed IDs/PINs, Leader→Staff school delegation, Staff self-service on assigned schools, Admin school assignment, a post-meeting acknowledgement PDF, Proposal generation and approval, and consistent Sunbot visual styling. It preserves the existing School Development funnel and canonical data sources.

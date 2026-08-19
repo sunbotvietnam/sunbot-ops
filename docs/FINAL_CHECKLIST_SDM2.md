@@ -1,0 +1,1 @@
+Before merge: CI pass; verify public source contains no real PINs; verify hierarchy enforcement is server-side; verify proposal approval creates final PDF; verify frontend build uses cache-busted assets. After deploy: test Admin, Leader and Staff logins and one delegated-school path end to end.

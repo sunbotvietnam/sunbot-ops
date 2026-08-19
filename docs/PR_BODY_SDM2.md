@@ -1,0 +1,1 @@
+Adds role hierarchy, Admin credentials/users, school assignment rules, professional post-meeting PDF, Proposal approval workflow and Sunbot design polish. Production credentials are held only in the private Sheet; no actual PIN values are committed in source.
