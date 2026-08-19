@@ -8,7 +8,7 @@ function handlePagesBridge_(e){
   try{payload=p.payload?JSON.parse(String(p.payload)):{};}catch(err){return pagesBridgeHtml_(requestId,null,'Dữ liệu yêu cầu không hợp lệ.');}
   try{
     let result;
-    if(mode==='pinLogin') result=loginPinByEmail_(payload.email||'',payload.pin||'');
+    if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
     else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
     else if(mode==='journey') result=apiSessionJourney(token,String(p.subaction||''),payload);
@@ -21,6 +21,10 @@ function handlePagesBridge_(e){
     else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspaceSafe(token,String(p.subaction||''),payload);
     else if(mode==='outreachCreate') result=apiSessionOutreachCreate(token,payload);
     else if(mode==='quotation') result=apiSessionQuotation(token,String(p.subaction||''),payload);
+    else if(mode==='proposalQuotation') result=apiSessionProposalQuotation(token,String(p.subaction||''),payload);
+    else if(mode==='ceoExceptions') result=apiSessionCeoExceptions(token,String(p.subaction||''),payload);
+    else if(mode==='salesAdmin') result=apiSessionSalesAdmin(token,String(p.subaction||''),payload);
+    else if(mode==='documents') result=apiSessionDocuments(token,String(p.subaction||''),payload);
     else throw new Error('Tác vụ GitHub Pages không hợp lệ.');
     return pagesBridgeHtml_(requestId,result,'');
   }catch(err){return pagesBridgeHtml_(requestId,null,safeErrorMessage_(err));}
