@@ -2,9 +2,12 @@ const WORKSPACE_FAST=Object.freeze({CACHE_SECONDS:45,KEY_PREFIX:'WS_DETAIL:'});
 
 function apiSessionOutreachWorkspaceSafe(sessionToken, action, payload) {
   const user=authenticateSession_(sessionToken);
-  ensureOutreachRuntimeSchemaSafe_();
   payload=payload||{};
-  switch(String(action||'')){
+  const op=String(action||'');
+  // Schema checks are needed for mutations, not for every read. Avoiding this on detail
+  // materially reduces Sheet I/O when users browse schools.
+  if(['save','reassign','scheduleFollowup','completeTask'].includes(op)) ensureOutreachRuntimeSchemaSafe_();
+  switch(op){
     case 'detail': return outreachWorkspaceDetailCached_(user,payload);
     case 'save': return outreachWorkspaceSaveCanonical_(user,payload);
     case 'reassign': {
