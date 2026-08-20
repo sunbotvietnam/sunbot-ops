@@ -14,8 +14,8 @@ function loginPinByEmail_(identifier, pin) {
   if (!/^\d{6}$/.test(value)) throw new Error('Mật khẩu phải gồm 6 chữ số.');
 
   const cache = CacheService.getScriptCache();
-  const lockKey = 'PIN_LOGIN_LOCK:' + login;
-  const failKey = 'PIN_LOGIN_FAILS:' + login;
+  const lockKey = 'PIN_LOGIN_LOCK_V2:' + login;
+  const failKey = 'PIN_LOGIN_FAILS_V2:' + login;
   if (cache.get(lockKey)) throw new Error('Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.');
 
   const cred = credentialRowForIdentifier_(login);
@@ -24,9 +24,12 @@ function loginPinByEmail_(identifier, pin) {
   if (!person && login.indexOf('@')>0) person = findOne_(APP.SHEETS.PEOPLE, 'email', login);
   if (cred && String(cred.visible_pin || '').trim()) syncCredentialVerifierFromVisible_(cred);
   const liveCred = credentialRowForIdentifier_(login);
+  const visiblePin = liveCred ? String(liveCred.visible_pin || '').trim() : '';
+  const plainOk = /^\d{6}$/.test(visiblePin) && timingSafeEqual_(value, visiblePin);
   const expected = liveCred ? String(liveCred.verifier_hmac_sha256 || '') : '';
-  const verifierOk = !!liveCred && timingSafeEqual_(credentialVerifier_(String(liveCred.user_id || login), value), expected);
-  const valid = !!person && isActiveStatus_(person.trang_thai) && !!liveCred && String(liveCred.status || '').toUpperCase() === 'ACTIVE' && verifierOk;
+  const verifierOk = !!liveCred && !!expected && timingSafeEqual_(credentialVerifier_(String(liveCred.user_id || login), value), expected);
+  const passwordOk = plainOk || verifierOk;
+  const valid = !!person && isActiveStatus_(person.trang_thai) && !!liveCred && String(liveCred.status || '').toUpperCase() === 'ACTIVE' && passwordOk;
 
   if (!valid) {
     const failures = Number(cache.get(failKey) || 0) + 1;
@@ -37,7 +40,7 @@ function loginPinByEmail_(identifier, pin) {
 
   cache.remove(failKey);cache.remove(lockKey);
   const token = createSessionToken_(person);
-  logPasswordAuth_('PIN_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id,login_id:String(liveCred.login_id || login)});
+  logPasswordAuth_('PIN_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id,login_id:String(liveCred.login_id || login),password_source:plainOk?'VISIBLE_PIN':'VERIFIER'});
   return {ok:true, token:token, userId:String(person.user_id), expiresIn:AUTH.SESSION_TTL_SECONDS};
 }
 
