@@ -10,8 +10,8 @@ function loginPinByEmail_(identifier, pin) {
   try{ensureSalesAdminRuntime_();}catch(ignored){}
   const login = String(identifier || '').trim().toLowerCase();
   const value = String(pin || '').trim();
-  if (!login) throw new Error('Hãy nhập ID hoặc email đăng nhập.');
-  if (!/^\d{6}$/.test(value)) throw new Error('Mã PIN phải gồm 6 chữ số.');
+  if (!login) throw new Error('Hãy nhập ID đăng nhập.');
+  if (!/^\d{6}$/.test(value)) throw new Error('Mật khẩu phải gồm 6 chữ số.');
 
   const cache = CacheService.getScriptCache();
   const lockKey = 'PIN_LOGIN_LOCK:' + login;
@@ -22,23 +22,22 @@ function loginPinByEmail_(identifier, pin) {
   let person = null;
   if (cred && cred.user_id) person = findOne_(APP.SHEETS.PEOPLE, 'user_id', String(cred.user_id));
   if (!person && login.indexOf('@')>0) person = findOne_(APP.SHEETS.PEOPLE, 'email', login);
-  const canonical = cred ? String(cred.login_id || cred.email || login).trim().toLowerCase() : login;
-  if (cred && String(cred.visible_pin || '').trim()) syncCredentialVerifierFromVisible_(cred, canonical);
+  if (cred && String(cred.visible_pin || '').trim()) syncCredentialVerifierFromVisible_(cred);
   const liveCred = credentialRowForIdentifier_(login);
   const expected = liveCred ? String(liveCred.verifier_hmac_sha256 || '') : '';
-  const verifierOk = timingSafeEqual_(credentialVerifier_(canonical, value), expected);
+  const verifierOk = !!liveCred && timingSafeEqual_(credentialVerifier_(String(liveCred.user_id || login), value), expected);
   const valid = !!person && isActiveStatus_(person.trang_thai) && !!liveCred && String(liveCred.status || '').toUpperCase() === 'ACTIVE' && verifierOk;
 
   if (!valid) {
     const failures = Number(cache.get(failKey) || 0) + 1;
     if (failures >= PASSWORD_AUTH.MAX_ATTEMPTS) {cache.put(lockKey, '1', PASSWORD_AUTH.LOCK_SECONDS);cache.remove(failKey);} else cache.put(failKey, String(failures), PASSWORD_AUTH.LOCK_SECONDS);
     logPasswordAuth_('PIN_LOGIN_FAILED', login, {attempts: failures});
-    throw new Error('ID/email hoặc mã PIN không đúng.');
+    throw new Error('ID hoặc mật khẩu không đúng.');
   }
 
   cache.remove(failKey);cache.remove(lockKey);
   const token = createSessionToken_(person);
-  logPasswordAuth_('PIN_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id,login_id:canonical});
+  logPasswordAuth_('PIN_LOGIN_SUCCESS', String(person.user_id), {userId: person.user_id,login_id:String(liveCred.login_id || login)});
   return {ok:true, token:token, userId:String(person.user_id), expiresIn:AUTH.SESSION_TTL_SECONDS};
 }
 
@@ -57,16 +56,19 @@ function credentialRows_() {
   return sh.getRange(2,1,sh.getLastRow()-1,h.length).getValues().map(function(row){const o = {}; h.forEach(function(k,i){ o[k]=row[i]; }); return o;});
 }
 
-function syncCredentialVerifierFromVisible_(cred,canonical){
+function syncCredentialVerifierFromVisible_(cred){
   const pin=String(cred.visible_pin||'').trim();if(!/^\d{6}$/.test(pin))return;
-  const expected=credentialVerifier_(canonical,pin);if(String(cred.verifier_hmac_sha256||'')===expected)return;
+  const expected=credentialVerifier_(String(cred.user_id||''),pin);if(String(cred.verifier_hmac_sha256||'')===expected)return;
   const sh=getDb_().getSheetByName(PASSWORD_AUTH.SHEET),h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String),uid=h.indexOf('user_id'),ver=h.indexOf('verifier_hmac_sha256'),upd=h.indexOf('updated_at');
   if(uid<0||ver<0)return;const vals=sh.getRange(2,1,sh.getLastRow()-1,h.length).getValues();const i=vals.findIndex(function(r){return String(r[uid])===String(cred.user_id);});if(i<0)return;sh.getRange(i+2,ver+1).setValue(expected);if(upd>=0)sh.getRange(i+2,upd+1).setValue(now_());
 }
 
-function credentialVerifier_(identifier, pin) {
+function credentialVerifier_(identifierOrUserId, pin) {
   const pepperHex = credentialSecret_('PIN_PEPPER_HEX');
-  const message = String(identifier).toLowerCase() + ':' + String(pin);
+  const raw=String(identifierOrUserId||'').trim();
+  const cred=raw?credentialRowForIdentifier_(raw):null;
+  const stableId=String((cred&&cred.user_id)||raw).trim().toLowerCase();
+  const message = stableId + ':' + String(pin);
   return Utilities.computeHmacSha256Signature(message, pepperHex).map(function(b){const n=b<0?b+256:b; return ('0'+n.toString(16)).slice(-2);}).join('');
 }
 
