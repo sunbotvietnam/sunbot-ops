@@ -1,16 +1,39 @@
+const WORKSPACE_FAST=Object.freeze({CACHE_SECONDS:45,KEY_PREFIX:'WS_DETAIL:'});
+
 function apiSessionOutreachWorkspaceSafe(sessionToken, action, payload) {
   const user=authenticateSession_(sessionToken);
   ensureOutreachRuntimeSchemaSafe_();
   payload=payload||{};
   switch(String(action||'')){
-    case 'detail': return outreachWorkspaceDetail_(user,payload);
+    case 'detail': return outreachWorkspaceDetailCached_(user,payload);
     case 'save': return outreachWorkspaceSaveCanonical_(user,payload);
-    case 'reassign': return outreachWorkspaceReassign_(user,payload);
-    case 'scheduleFollowup': return outreachWorkspaceScheduleFollowup_(user,payload);
-    case 'completeTask': return outreachWorkspaceCompleteTask_(user,payload);
+    case 'reassign': {
+      const r=outreachWorkspaceReassign_(user,payload);invalidateWorkspaceDetail_(user,payload.outreach_id);return r;
+    }
+    case 'scheduleFollowup': {
+      const r=outreachWorkspaceScheduleFollowup_(user,payload);invalidateWorkspaceDetail_(user,payload.outreach_id);return r;
+    }
+    case 'completeTask': {
+      const work=findOne_('CONG_VIEC','work_id',payload.work_id);const r=outreachWorkspaceCompleteTask_(user,payload);if(work&&work.account_id)invalidateWorkspaceByAccount_(user,work.account_id);return r;
+    }
     case 'people': return outreachWorkspacePeople_(user);
     default: throw new Error('Tác vụ hồ sơ trường không hợp lệ.');
   }
+}
+
+function outreachWorkspaceDetailCached_(user,p){
+  required_(p,['outreach_id']);
+  const key=WORKSPACE_FAST.KEY_PREFIX+String(user.user_id)+':'+String(p.outreach_id);
+  const cache=CacheService.getScriptCache();
+  const hit=cache.get(key);
+  if(hit){try{return JSON.parse(hit);}catch(ignored){}}
+  const data=outreachWorkspaceDetail_(user,p);
+  try{cache.put(key,JSON.stringify(data),WORKSPACE_FAST.CACHE_SECONDS);}catch(ignored){}
+  return data;
+}
+function invalidateWorkspaceDetail_(user,outreachId){try{CacheService.getScriptCache().remove(WORKSPACE_FAST.KEY_PREFIX+String(user.user_id)+':'+String(outreachId||''));}catch(ignored){}}
+function invalidateWorkspaceByAccount_(user,accountId){
+  try{const row=getAll_(OUTREACH.SHEET).find(function(r){return String(r.account_id||'')===String(accountId||'');});if(row)invalidateWorkspaceDetail_(user,row.outreach_id);}catch(ignored){}
 }
 
 function outreachWorkspaceSaveCanonical_(user,p){
@@ -44,6 +67,7 @@ function outreachWorkspaceSaveCanonical_(user,p){
   }
   audit_(user,'WORKSPACE_SAVE',OUTREACH.SHEET,row.outreach_id,Object.assign({},patch,{source_writeback:false}));
   try{CacheService.getScriptCache().remove(FAST_API.KEY_PREFIX+String(user.user_id));}catch(ignored){}
+  invalidateWorkspaceDetail_(user,row.outreach_id);
   const advanced=patch.trang_thai_thuc_hien==='CAN_GUI'&&patch.trang_thai_thuc_hien!==row.trang_thai_thuc_hien;
   return {ok:true,message:advanced?'Đã xác minh contact và tạo việc gửi hồ sơ.':'Đã lưu thông tin trường.'};
 }
