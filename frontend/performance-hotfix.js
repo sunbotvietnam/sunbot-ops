@@ -3,9 +3,10 @@
   const TTL=90000;
   const oldOpen=window.openSchoolWorkspace;
   const oldCall=window.call;
-  let pendingRow=null;
+  let pendingRow=null,lastMutationAt=0,prefetchTimer=null;
 
   function now(){return Date.now();}
+  function wait(ms){return new Promise(r=>setTimeout(r,ms));}
   function cached(id){const x=workspaceCache.get(String(id||''));return x&&now()-x.ts<TTL?x.data:null;}
   function setCached(id,data){if(id&&data)workspaceCache.set(String(id),{ts:now(),data});}
   function instantMarkup(row){
@@ -30,20 +31,47 @@
     }
     const record=document.getElementById('primaryRecord');if(record)record.textContent='Trao đổi';
   }
+  function bindPrefetch(){
+    document.querySelectorAll('.school-card .detail:not([data-prefetch-bound])').forEach(btn=>{
+      btn.dataset.prefetchBound='1';
+      btn.addEventListener('pointerenter',()=>{
+        const id=btn.closest('.school-card')?.dataset.id;if(!id||cached(id))return;
+        clearTimeout(prefetchTimer);prefetchTimer=setTimeout(()=>bridge('outreachWorkspace','detail',{outreach_id:id},state.token).then(r=>setCached(id,r)).catch(()=>{}),220);
+      },{passive:true});
+    });
+  }
 
   window.call=async function(mode,sub,payload){
-    if(mode==='outreachWorkspace'&&sub==='detail'&&payload&&payload.outreach_id){
+    payload=payload||{};
+    if(mode==='outreachWorkspace'&&sub==='detail'&&payload.outreach_id){
       const hit=cached(payload.outreach_id);if(hit)return hit;
-      const res=await oldCall(mode,sub,payload);setCached(payload.outreach_id,res);return res;
+      const res=await bridge(mode,sub,payload,state.token);setCached(payload.outreach_id,res);return res;
     }
+    // Secondary intelligence must never block the core school workspace.
+    if(mode==='ceoExceptions'&&sub==='summary'){await wait(900);return bridge(mode,sub,payload,state.token);}
+    if(mode==='journey'&&sub==='trackingSummary'){await wait(1200);return bridge(mode,sub,payload,state.token);}
+    if(mode==='salesAdmin'&&sub==='bootstrap'){return bridge(mode,sub,payload,state.token);}
+
+    // Avoid three redundant reads immediately after a workspace write. The detailed record
+    // has already been reloaded; the list is refreshed asynchronously a moment later.
+    if(now()-lastMutationAt<2500){
+      if(mode==='outreach'&&sub==='summary')return state.summary||{};
+      if(mode==='outreach'&&sub==='list')return state.rows||[];
+      if(mode==='core'&&sub==='tasks')return state.tasks||[];
+    }
+
     const res=await oldCall(mode,sub,payload);
-    if(mode==='outreachWorkspace'&&['save','reassign','scheduleFollowup','completeTask'].includes(sub))workspaceCache.clear();
+    if(mode==='outreachWorkspace'&&['save','reassign','scheduleFollowup','completeTask'].includes(sub)){
+      workspaceCache.clear();lastMutationAt=now();
+      setTimeout(()=>{if(window.refreshOutreach)window.refreshOutreach(true).catch(()=>{});},700);
+    }
     return res;
   };
 
-  if(typeof oldOpen==='function')window.openSchoolWorkspace=function(row){pendingRow=row;const p=oldOpen(row);setTimeout(paintLoadingPanel,0);return p;};
+  if(typeof oldOpen==='function')window.openSchoolWorkspace=function(row){pendingRow=row;const hit=cached(row.outreach_id);if(hit){return oldOpen(row);}const p=oldOpen(row);setTimeout(paintLoadingPanel,0);return p;};
 
-  const obs=new MutationObserver(()=>{paintLoadingPanel();exposePrimaryActions();});
+  const obs=new MutationObserver(()=>{paintLoadingPanel();exposePrimaryActions();bindPrefetch();});
   obs.observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(bindPrefetch,200));
   window.__sunbotWorkspaceCache=workspaceCache;
 })();
