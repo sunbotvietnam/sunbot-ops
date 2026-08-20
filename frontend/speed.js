@@ -45,7 +45,7 @@
     if(!canSync)return;
     toast('Đăng nhập thành công. Đang chuẩn bị danh sách trường lần đầu…');
     const c=document.getElementById('content');
-    if(c)c.innerHTML='<div class="empty">Đang chuẩn bị danh sách trường lần đầu. Chị vẫn đã đăng nhập thành công; dữ liệu sẽ tự xuất hiện khi đồng bộ xong.</div>';
+    if(c)c.innerHTML='<div class="empty">Đang chuẩn bị danh sách trường lần đầu. Bạn đã đăng nhập thành công; dữ liệu sẽ tự xuất hiện khi đồng bộ xong.</div>';
     try{
       await longBridge('syncSafe','sync',{},state.token,120000);
       const fresh=await call('fast','load',{force:true});
@@ -58,21 +58,43 @@
     }
   }
 
-  window.loadApp=async function(){
+  async function loadWorkspaceAfterLogin_(){
     try{
       const data=await call('fast','load',{});
       applyFastState(data);
       state.tasks=[];
       state.tasksLoaded=false;
-      renderApp();
+      renderContent();
       seedIfNeeded(data);
+    }catch(e){
+      const c=document.getElementById('content');
+      if(c)c.innerHTML='<div class="empty"><b>Đăng nhập thành công.</b><br>Chưa tải được danh sách trường. Bấm ↻ để thử lại mà không cần đăng nhập lại.</div>';
+      toast('Đã đăng nhập nhưng chưa tải được dữ liệu: '+e.message,true);
+    }
+  }
+
+  window.loadApp=async function(){
+    try{
+      // Authentication/session bootstrap must be independent from heavy workspace loading.
+      // A valid PIN should enter the shell immediately, even when Sheets/fast-load is slow.
+      const boot=await call('core','bootstrap',{});
+      state.boot=boot;
+      state.summary=state.summary||{};
+      state.dashboard=state.dashboard||{};
+      state.rows=state.rows||[];
+      state.tasks=[];
+      state.tasksLoaded=false;
+      renderApp();
+      toast('Đăng nhập thành công.');
+      loadWorkspaceAfterLogin_();
     }catch(e){
       if(/phiên đăng nhập|hết hạn|không còn được cấp quyền/i.test(e.message)){
         logout();toast('Phiên đăng nhập đã hết hạn.',true);
       }else{
-        // Không coi lỗi tải workspace là lỗi đăng nhập. Giữ session và cho người dùng thử lại.
-        toast('Đã đăng nhập nhưng chưa tải được dữ liệu: '+e.message,true);
-        if(state.token&&state.boot){renderApp();}
+        // Keep the issued token; do not misreport a post-auth bootstrap problem as wrong credentials.
+        toast('Đã xác thực nhưng chưa khởi tạo được ứng dụng: '+e.message,true);
+        const c=document.getElementById('app');
+        if(c)c.innerHTML='<main class="login-shell"><section class="login-card"><h1>SUNBOT OPS</h1><p>Đã xác thực tài khoản nhưng máy chủ chưa khởi tạo được workspace.</p><button class="btn" onclick="loadApp()">Thử tải lại</button><button class="link-btn" onclick="logout()">Đăng xuất</button></section></main>';
       }
     }
   };
