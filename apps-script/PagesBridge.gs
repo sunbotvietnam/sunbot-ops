@@ -9,6 +9,7 @@ function handlePagesBridge_(e){
   try{
     let result;
     if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
+    else if(mode==='fastShell') result=apiSessionFastShell(token,String(p.subaction||''),payload);
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
     else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
     else if(mode==='journey') result=apiSessionJourney(token,String(p.subaction||''),payload);
