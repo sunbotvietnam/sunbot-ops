@@ -8,7 +8,8 @@ function handlePagesBridge_(e){
   try{payload=p.payload?JSON.parse(String(p.payload)):{};}catch(err){return pagesBridgeHtml_(requestId,null,'Dữ liệu yêu cầu không hợp lệ.');}
   try{
     let result;
-    if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
+    if(mode==='v2') result=apiSessionV2(token,String(p.subaction||''),payload);
+    else if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
     else if(mode==='fastShell') result=apiSessionFastShell(token,String(p.subaction||''),payload);
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
     else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
