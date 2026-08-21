@@ -1,31 +1,32 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
 function handlePagesBridge_(e){
-  const p=e&&e.parameter?e.parameter:{};
-  const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
-  const mode=String(p.mode||'').trim();
-  const token=String(p.token||'').trim();
+  const p=e&&e.parameter?p.parameter:{};
+  const requestId=String((e&&e.parameter&&e.parameter.request_id)||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
+  const mode=String((e&&e.parameter&&e.parameter.mode)||'').trim();
+  const token=String((e&&e.parameter&&e.parameter.token)||'').trim();
   let payload={};
-  try{payload=p.payload?JSON.parse(String(p.payload)):{};}catch(err){return pagesBridgeHtml_(requestId,null,'Dữ liệu yêu cầu không hợp lệ.');}
+  try{payload=e&&e.parameter&&e.parameter.payload?JSON.parse(String(e.parameter.payload)):{};}catch(err){return pagesBridgeHtml_(requestId,null,'Dữ liệu yêu cầu không hợp lệ.');}
   try{
     let result;
-    if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
-    else if(mode==='fastShell') result=apiSessionFastShell(token,String(p.subaction||''),payload);
-    else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
-    else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
-    else if(mode==='journey') result=apiSessionJourney(token,String(p.subaction||''),payload);
-    else if(mode==='engagement') result=apiSessionEngagement(token,String(p.subaction||''),payload);
-    else if(mode==='timeline') result=apiSessionTimeline(token,String(p.subaction||''),payload);
-    else if(mode==='core') result=apiSession(token,String(p.subaction||''),payload);
-    else if(mode==='commercial') result=apiSessionCommercial(token,String(p.subaction||''),payload);
-    else if(mode==='ceo') result=apiSessionCeo(token,String(p.subaction||''),payload);
-    else if(mode==='outreach') result=apiSessionOutreach(token,String(p.subaction||''),payload);
-    else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspaceSafe(token,String(p.subaction||''),payload);
+    if(mode==='v2') result=apiSessionV2(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
+    else if(mode==='fastShell') result=apiSessionFastShell(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='fast') result=apiSessionFast(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='journey') result=apiSessionJourney(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='engagement') result=apiSessionEngagement(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='timeline') result=apiSessionTimeline(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='core') result=apiSession(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='commercial') result=apiSessionCommercial(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='ceo') result=apiSessionCeo(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='outreach') result=apiSessionOutreach(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='outreachWorkspace') result=apiSessionOutreachWorkspaceSafe(token,String(e.parameter.subaction||''),payload);
     else if(mode==='outreachCreate') result=apiSessionOutreachCreate(token,payload);
-    else if(mode==='quotation') result=apiSessionQuotation(token,String(p.subaction||''),payload);
-    else if(mode==='proposalQuotation') result=apiSessionProposalQuotation(token,String(p.subaction||''),payload);
-    else if(mode==='ceoExceptions') result=apiSessionCeoExceptions(token,String(p.subaction||''),payload);
-    else if(mode==='salesAdmin') result=apiSessionSalesAdmin(token,String(p.subaction||''),payload);
-    else if(mode==='documents') result=apiSessionDocuments(token,String(p.subaction||''),payload);
+    else if(mode==='quotation') result=apiSessionQuotation(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='proposalQuotation') result=apiSessionProposalQuotation(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='ceoExceptions') result=apiSessionCeoExceptions(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='salesAdmin') result=apiSessionSalesAdmin(token,String(e.parameter.subaction||''),payload);
+    else if(mode==='documents') result=apiSessionDocuments(token,String(e.parameter.subaction||''),payload);
     else throw new Error('Tác vụ GitHub Pages không hợp lệ.');
     return pagesBridgeHtml_(requestId,result,'');
   }catch(err){return pagesBridgeHtml_(requestId,null,safeErrorMessage_(err));}
