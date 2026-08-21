@@ -1,5 +1,5 @@
 (function(){
-  const BUILD='core-v2.1';
+  const BUILD='core-v2.2';
   state.search=state.search||'';
   state.owner=state.owner||'ALL';
   state.pipelineSpecial=state.pipelineSpecial||'';
@@ -14,6 +14,7 @@
     const host=el('content');if(!host)return;
     const s=state.summary||{},p=s.pipeline||{};
     let rows=(state.rows||[]).slice();
+    const loading=!state.generatedAt&&rows.length===0;
     const q=String(state.search||'').trim().toLowerCase();
     if(q)rows=rows.filter(r=>[r.ten_truong,r.tinh_thanh,r.owner_name,r.next_action,r.email_truong,r.dien_thoai_dau_moi].join(' ').toLowerCase().includes(q));
     if(state.filter&&state.filter!=='ALL')rows=rows.filter(r=>String(r.trang_thai_thuc_hien)===String(state.filter));
@@ -26,9 +27,12 @@
     const provinces=[...new Set((state.rows||[]).map(r=>r.tinh_thanh).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'vi'));
     const owners=(s.by_owner||[]).filter(x=>x.user_id);
     const ownerFilter=isManager()?`<select id="ownerFilter"><option value="ALL">Tất cả người phụ trách</option>${owners.map(o=>`<option value="${esc(o.user_id)}" ${state.owner===o.user_id?'selected':''}>${esc(shortName(o.name))} · ${Number(o.total||0)} trường</option>`).join('')}</select>`:'';
-    const managerStrip=isManager()?`<section class="ceo-school-summary core-summary"><button data-core-filter="OVERDUE"><b>${Number(s.overdue||0)}</b><span>Quá hạn</span></button><button data-core-filter="MISSING_NEXT"><b>${Number(s.missing_next_action||0)}</b><span>Thiếu bước tiếp theo</span></button><button data-core-status="DANG_CHO_PHAN_HOI"><b>${Number(p.waiting||0)}</b><span>Chờ phản hồi</span></button><button data-core-filter="PROGRESS"><b>${Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button></section>`:`<section class="role-command core-summary"><div><strong>Việc của tôi hôm nay</strong><span>Ưu tiên trường đến hạn và luôn chốt một bước tiếp theo có ngày.</span></div><div class="core-sale-counts"><b>${Number(s.can_lam_hom_nay||0)} cần xử lý</b><b>${Number(s.overdue||0)} quá hạn</b><b>${Number(s.dang_cho_phan_hoi||0)} chờ phản hồi</b></div></section>`;
+    const metric=v=>loading?'…':Number(v||0);
+    const managerStrip=isManager()?`<section class="ceo-school-summary core-summary"><button data-core-filter="OVERDUE"><b>${metric(s.overdue)}</b><span>Quá hạn</span></button><button data-core-filter="MISSING_NEXT"><b>${metric(s.missing_next_action)}</b><span>Thiếu bước tiếp theo</span></button><button data-core-status="DANG_CHO_PHAN_HOI"><b>${metric(p.waiting)}</b><span>Chờ phản hồi</span></button><button data-core-filter="PROGRESS"><b>${loading?'…':Number((p.responded||0)+(p.meeting||0)+(p.opportunity||0))}</b><span>Đang tiến triển</span></button></section>`:`<section class="role-command core-summary"><div><strong>Việc của tôi hôm nay</strong><span>Ưu tiên trường đến hạn và luôn chốt một bước tiếp theo có ngày.</span></div><div class="core-sale-counts"><b>${metric(s.can_lam_hom_nay)} cần xử lý</b><b>${metric(s.overdue)} quá hạn</b><b>${metric(s.dang_cho_phan_hoi)} chờ phản hồi</b></div></section>`;
+    const heroText=loading?'Đang tải danh sách trường…':`${Number(s.total||0)} trường · ${Number(s.overdue||0)} quá hạn · ${Number(s.dang_cho_phan_hoi||0)} chờ phản hồi`;
+    const listHtml=loading?'<div class="empty"><b>Đang tải danh sách trường…</b><br><span class="muted">Bạn đã đăng nhập thành công. Dữ liệu trường tải trước; analytics tải sau.</span></div>':(rows.length?rows.map(cardHtml).join(''):'<div class="empty">Không có trường phù hợp.</div>');
 
-    host.innerHTML=`<section class="hero compact-hero core-hero"><div><span class="core-kicker">SCHOOL DEVELOPMENT</span><h1>Trường & việc tiếp theo</h1><p>${Number(s.total||0)} trường · ${Number(s.overdue||0)} quá hạn · ${Number(s.dang_cho_phan_hoi||0)} chờ phản hồi</p></div><div class="hero-actions"><small class="core-build">${BUILD}</small><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></div></section>${managerStrip}<section class="filters minimal-filters core-filters"><input id="schoolSearch" class="input" placeholder="Tìm trường / việc tiếp theo…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${esc(v)}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(x=>`<option value="${esc(x)}" ${state.province===x?'selected':''}>${esc(x)}</option>`).join('')}</select>${ownerFilter}</section><section class="cards minimal-cards core-school-list">${rows.length?rows.map(cardHtml).join(''):'<div class="empty">Không có trường phù hợp.</div>'}</section>`;
+    host.innerHTML=`<section class="hero compact-hero core-hero"><div><span class="core-kicker">SCHOOL DEVELOPMENT</span><h1>Trường & việc tiếp theo</h1><p>${heroText}</p></div><div class="hero-actions"><small class="core-build">${BUILD}</small><button class="btn add-school-btn" id="addSchoolBtn">＋ Thêm trường</button></div></section>${managerStrip}<section class="filters minimal-filters core-filters"><input id="schoolSearch" class="input" placeholder="Tìm trường / việc tiếp theo…" value="${esc(state.search||'')}"><select id="statusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${state.filter===k?'selected':''}>${esc(v)}</option>`).join('')}</select><select id="provinceFilter"><option value="ALL">Tất cả địa bàn</option>${provinces.map(x=>`<option value="${esc(x)}" ${state.province===x?'selected':''}>${esc(x)}</option>`).join('')}</select>${ownerFilter}</section><section class="cards minimal-cards core-school-list">${listHtml}</section>`;
 
     el('addSchoolBtn').onclick=()=>window.openAddSchool&&window.openAddSchool();
     el('schoolSearch').oninput=e=>{state.search=e.target.value;renderOutreach();};
@@ -52,15 +56,8 @@
     const row=workspaceRow();if(!row)return;
     if(toolbar.dataset.coreV2==='1')return;toolbar.dataset.coreV2='1';
     [...toolbar.children].forEach(x=>x.style.display='none');
-    const actions=[
-      ['coreConnect','Kết nối',()=>document.getElementById('journeyComposeBtn')?.click()],
-      ['coreMeeting','Đặt lịch',()=>document.getElementById('meeting40Btn')?.click()],
-      ['primaryRecord','Trao đổi',()=>document.getElementById('discoveryBtn')?.click()],
-      ['coreNext','Việc tiếp theo',()=>document.getElementById('wsFollow')?.click()],
-      ['coreDocs','Tài liệu & Proposal',()=>document.getElementById('documentsBtn')?.click()]
-    ];
+    const actions=[['coreConnect','Kết nối',()=>document.getElementById('journeyComposeBtn')?.click()],['coreMeeting','Đặt lịch',()=>document.getElementById('meeting40Btn')?.click()],['primaryRecord','Trao đổi',()=>document.getElementById('discoveryBtn')?.click()],['coreNext','Việc tiếp theo',()=>document.getElementById('wsFollow')?.click()],['coreDocs','Tài liệu & Proposal',()=>document.getElementById('documentsBtn')?.click()]];
     actions.forEach(([id,label,fn])=>{const b=document.createElement('button');b.id=id;b.className='btn primary-action core-action';b.textContent=label;b.onclick=fn;toolbar.appendChild(b);});
-    // Engagement module upgrades primaryRecord to full Meeting Mode when available.
     setTimeout(()=>{const p=document.getElementById('primaryRecord');if(p&&!p.dataset.methodBound&&document.getElementById('discoveryBtn'))p.onclick=()=>document.getElementById('discoveryBtn').click();},50);
   }
 
