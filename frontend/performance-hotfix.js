@@ -11,7 +11,7 @@
   function setCached(id,data){if(id&&data)workspaceCache.set(String(id),{ts:now(),data});}
   async function loadDetail(id){
     const hit=cached(id);if(hit)return hit;
-    const res=await bridge('workspaceFast','detail',{outreach_id:id},state.token);setCached(id,res);return res;
+    const res=await bridge('outreachWorkspace','detail',{outreach_id:id},state.token);setCached(id,res);return res;
   }
   function instantMarkup(row){
     const status=(window.STATUS_LABELS&&STATUS_LABELS[row.trang_thai_thuc_hien])||row.trang_thai_thuc_hien||'';
