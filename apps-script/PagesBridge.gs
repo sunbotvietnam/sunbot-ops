@@ -1,4 +1,5 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
+const SUNBOT_PAGES_BRIDGE_VERSION = '2026-08-25-pricebook-v3';
 function handlePagesBridge_(e){
   const p=e&&e.parameter?e.parameter:{};
   const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
@@ -9,7 +10,7 @@ function handlePagesBridge_(e){
   try{
     let result;
     if(mode==='v2') result=apiSessionV2(token,String(p.subaction||''),payload);
-    else if(mode==='pinLogin') result=loginPinByEmail_(payload.email||payload.identifier||'',payload.pin||'');
+    else if(mode==='pinLogin') result=loginPinByEmail_(payload.login_id||payload.email||payload.identifier||'',payload.pin||'');
     else if(mode==='fastShell') result=apiSessionFastShell(token,String(p.subaction||''),payload);
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
     else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
@@ -32,7 +33,7 @@ function handlePagesBridge_(e){
   }catch(err){return pagesBridgeHtml_(requestId,null,safeErrorMessage_(err));}
 }
 function pagesBridgeHtml_(requestId,result,error){
-  const message={type:'sunbot-pages-response',requestId:requestId,ok:!error,result:result||null,error:error||''};
+  const message={type:'sunbot-pages-response',requestId:requestId,ok:!error,result:result||null,error:error||'',bridgeVersion:SUNBOT_PAGES_BRIDGE_VERSION};
   const json=JSON.stringify(message).replace(/<\//g,'<\\/');
   const html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>(function(){window.top.postMessage('+json+', '+JSON.stringify(SUNBOT_PAGES_ORIGIN)+');})();<\/script></body></html>';
   return HtmlService.createHtmlOutput(html).setTitle('SUNBOT OPS Bridge').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
