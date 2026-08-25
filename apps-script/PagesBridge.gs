@@ -1,5 +1,5 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
-const SUNBOT_PAGES_BRIDGE_VERSION = '2026-08-25-quotation-shared-auth';
+const SUNBOT_PAGES_BRIDGE_VERSION = '2026-08-25-quotation-materials';
 function handlePagesBridge_(e){
   const p=e&&e.parameter?e.parameter:{};
   const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
@@ -13,6 +13,7 @@ function handlePagesBridge_(e){
     else if(mode==='pinLogin') result=loginPinByEmail_(payload.login_id||payload.email||payload.identifier||'',payload.pin||'');
     else if(mode==='quotationAccess') result=quotationSharedLogin_(payload.password||'');
     else if(mode==='quotationShared') result=apiSessionQuotationShared(token,String(p.subaction||''),payload);
+    else if(mode==='quotationMaterials') result=quotationMaterialsShared_(token);
     else if(mode==='fastShell') result=apiSessionFastShell(token,String(p.subaction||''),payload);
     else if(mode==='fast') result=apiSessionFast(token,String(p.subaction||''),payload);
     else if(mode==='syncSafe') result=apiSessionOutreachSyncSafe(token,String(p.subaction||''),payload);
