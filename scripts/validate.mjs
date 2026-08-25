@@ -4,6 +4,7 @@ import path from 'node:path';
 const required = [
   'apps-script/appsscript.json','apps-script/Code.gs','apps-script/Auth.gs','apps-script/PasswordAuth.gs','apps-script/Production.gs',
   'apps-script/CommercialIntelligence.gs','apps-script/CeoIntelligence.gs','apps-script/Outreach.gs','apps-script/OutreachWorkspace.gs','apps-script/OutreachWorkspaceSafe.gs','apps-script/OutreachSyncSafe.gs','apps-script/PagesBridge.gs','apps-script/OtpHttp.gs',
+  'apps-script/QuotationV3Refactor.gs',
   'apps-script/Index.html','apps-script/Styles.html','apps-script/Scripts.html','apps-script/CommercialUi.html','apps-script/OutreachUi.html','apps-script/CeoCockpitUi.html',
   'frontend/index.html','frontend/app.js','frontend/pin-login.js','frontend/security-session.js','frontend/workspace.js','frontend/minimal-ui.js','frontend/minimal-ui.css','frontend/styles.css',
   'schema/sheets-schema.json','schema/roles.json','docs/AI_CONTEXT.md','docs/GOOGLE_ARCHITECTURE.md','docs/COMMERCIAL_INTELLIGENCE_DATA_ARCHITECTURE.md','README.md'
@@ -44,6 +45,10 @@ for(const raw of ['5678','3456','1234','727833'])if(passwordAuth.includes(raw)){
 const pagesBridge=fs.readFileSync('apps-script/PagesBridge.gs','utf8');
 for(const token of ['handlePagesBridge_','pinLogin','loginPinByEmail_','apiSessionOutreachSyncSafe','apiSessionOutreachWorkspaceSafe','sunbot-pages-response','https://sunbotvietnam.github.io'])if(!pagesBridge.includes(token)){console.error('Pages bridge V1 thiếu chức năng:',token);failed=true;}
 for(const forbiddenToken of ['apiSessionOutreachContact','postMessage('+"''"+', "*")','requestOtp','verifyOtp','pagesPinLogin_','loginPassword_'])if(pagesBridge.includes(forbiddenToken)){console.error('Pages bridge V1 còn route/fallback cũ:',forbiddenToken);failed=true;}
+if(!pagesBridge.includes("mode==='quotationV3'")||!pagesBridge.includes('apiSessionQuotationV3')){console.error('Pages bridge chưa nối Quotation V3 clean.');failed=true;}
+const quotationV3=fs.readFileSync('apps-script/QuotationV3Refactor.gs','utf8');
+for(const token of ['apiSessionQuotationV3','quotationV3Catalog_','quotationV3Materials_','quotationV3Preview_','quotationV3Save_','quotationSharedSession_'])if(!quotationV3.includes(token)){console.error('Quotation V3 backend thiếu chức năng:',token);failed=true;}
+for(const forbiddenToken of ['SHARED_PASSWORD_SHA256:',"'5678'",'floor_price'])if(quotationV3.includes(forbiddenToken)){console.error('Quotation V3 chứa bí mật hoặc giá sàn không được public:',forbiddenToken);failed=true;}
 const otpHttp=fs.readFileSync('apps-script/OtpHttp.gs','utf8');
 if(!otpHttp.includes("action === 'pagesBridge'")){console.error('doPost V1 chưa nối GitHub Pages bridge');failed=true;}
 for(const forbiddenToken of ['adminPasswordLogin','requestOtp'])if(otpHttp.includes("action === '"+forbiddenToken+"'")){console.error('doPost V1 còn auth route cũ:',forbiddenToken);failed=true;}
