@@ -1,5 +1,5 @@
 const QUOTATION_APPROVAL = Object.freeze({
-  VERSION: '2026.08.28-v2',
+  VERSION: '2026.08.28-v3',
   AUTH_SHEET: 'AUTH_USERS',
   HEADER_ROW: 3,
   SESSION_PREFIX: 'QUSER:',
@@ -191,7 +191,7 @@ function quotationApprovalSet_(sheet, row, headers, values) {
 }
 
 function quotationApprovalQuoteHeaders_() {
-  return ['quote_id','version','created_at','created_by','client_name','client_type','combo_code','subtotal','discount_rate','discount_amount','final_amount','status','approval_required','approved_by','approved_at','notes','pricebook_version','customer_id','opportunity_id','region','creator_role','deal_owner','standard_amount','proposed_amount','exception_reason','commercial_fingerprint','updated_at','rejected_by','rejected_at','rejection_reason','exportable'];
+  return ['quote_id','version','created_at','created_by','client_name','client_type','combo_code','subtotal','discount_rate','discount_amount','final_amount','status','approval_required','approved_by','approved_at','notes','configuration_description','pricebook_version','customer_id','opportunity_id','region','creator_role','deal_owner','standard_amount','proposed_amount','exception_reason','commercial_fingerprint','updated_at','rejected_by','rejected_at','rejection_reason','exportable'];
 }
 
 function quotationApprovalLineHeaders_() {
@@ -266,6 +266,8 @@ function quotationApprovalLatest_(quoteId) {
 function quotationApprovalSave_(session, payload) {
   const clientName = String(payload.customer_name || payload.client_name || '').trim();
   if (!clientName) throw new Error('Hãy nhập tên khách hàng.');
+  const configurationDescription = String(payload.configuration_description || '').trim();
+  if (!configurationDescription) throw new Error('Hãy kiểm tra phần diễn giải cấu hình trước khi gửi duyệt.');
   const lines = quotationApprovalBuildLines_(session, payload);
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
@@ -288,6 +290,7 @@ function quotationApprovalSave_(session, payload) {
       client_name:clientName, client_type:String(payload.client_type || ''), combo_code:String(payload.combo_code || ''),
       subtotal:standard, discount_rate:discountRate, discount_amount:discountAmount, final_amount:proposed,
       status:'NEEDS_APPROVAL', approval_required:true, approved_by:'', approved_at:'', notes:String(payload.notes || ''),
+      configuration_description:configurationDescription,
       pricebook_version:QUOTATION_APPROVAL.VERSION, customer_id:String(payload.customer_id || ''), opportunity_id:String(payload.opportunity_id || ''),
       region:session.region, creator_role:session.role, deal_owner:session.login_id,
       standard_amount:standard, proposed_amount:proposed, exception_reason:reason,
@@ -295,8 +298,8 @@ function quotationApprovalSave_(session, payload) {
       rejected_by:'', rejected_at:'', rejection_reason:'', exportable:false
     });
     lines.forEach(function(line){ line.quote_id = generated.id; line.version = version; quotationApprovalAppendObject_(lineSheet, lineHeaders, line); });
-    quotationApprovalAudit_(session, previous && String(previous.status) === 'APPROVED' ? 'QUOTE_APPROVAL_INVALIDATED' : (version > 1 ? 'QUOTE_REVISION' : 'QUOTE_CREATE'), generated.id, {version:version,status:'NEEDS_APPROVAL',standard_amount:standard,proposed_amount:proposed,discount_rate:discountRate,previous_status:previous ? String(previous.status || '') : ''});
-    return {ok:true,quote_id:generated.id,quote_code:generated.display,version:version,status:'NEEDS_APPROVAL',exportable:false,created_by:session.login_id,display_name:session.display_name,region:session.region,standard_amount:standard,final_amount:proposed};
+    quotationApprovalAudit_(session, previous && String(previous.status) === 'APPROVED' ? 'QUOTE_APPROVAL_INVALIDATED' : (version > 1 ? 'QUOTE_REVISION' : 'QUOTE_CREATE'), generated.id, {version:version,status:'NEEDS_APPROVAL',standard_amount:standard,proposed_amount:proposed,discount_rate:discountRate,previous_status:previous ? String(previous.status || '') : '',configuration_description:configurationDescription});
+    return {ok:true,quote_id:generated.id,quote_code:generated.display,version:version,status:'NEEDS_APPROVAL',exportable:false,created_by:session.login_id,display_name:session.display_name,region:session.region,standard_amount:standard,final_amount:proposed,configuration_description:configurationDescription};
   } finally { lock.releaseLock(); }
 }
 
