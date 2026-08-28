@@ -23,31 +23,12 @@ function quotationSha256Hex_(text) {
   return bytes.map(function(b){ const n = b < 0 ? b + 256 : b; return ('0' + n.toString(16)).slice(-2); }).join('');
 }
 
-function quotationSharedLogin_(password) {
-  const cfg = quotationSharedConfig_();
-  if (String(cfg.AUTH_MODE || '') !== 'SHARED_PASSWORD') throw new Error('Chế độ truy cập Quotation chưa được bật.');
-  const expected = String(cfg.SHARED_PASSWORD_SHA256 || '').toLowerCase();
-  const actual = quotationSha256Hex_(password).toLowerCase();
-  if (!expected || actual !== expected) throw new Error('Mật khẩu không đúng.');
-  const token = 'Q-' + Utilities.getUuid().replace(/-/g,'') + '-' + Date.now();
-  const requestedHours = Number(cfg.SESSION_HOURS || 6);
-  const seconds = Math.max(900, Math.min(21600, Math.round(requestedHours * 3600) || QUOTATION_SHARED_AUTH.DEFAULT_SESSION_SECONDS));
-  CacheService.getScriptCache().put(QUOTATION_SHARED_AUTH.CACHE_PREFIX + token, JSON.stringify({kind:'quotation-shared',created_at:new Date().toISOString()}), seconds);
-  return {ok:true, token:token, expires_in:seconds, access:'shared', integration:String(cfg.OPS_INTEGRATION || 'OPTIONAL_CONTEXT')};
+function quotationSharedLogin_(loginId, password) {
+  return quotationApprovalLogin_(loginId, password);
 }
 
 function quotationSharedSession_(token) {
-  const key = QUOTATION_SHARED_AUTH.CACHE_PREFIX + String(token || '').trim();
-  const raw = CacheService.getScriptCache().get(key);
-  if (!raw) throw new Error('Phiên truy cập đã hết hạn. Vui lòng nhập lại mật khẩu.');
-  return {
-    user_id:'QUOTATION-SHARED',
-    ho_ten:'Nội bộ Sunbot',
-    email:'',
-    roles:['SALES'],
-    permissions:{},
-    shared_access:true
-  };
+  return quotationApprovalSession_(token);
 }
 
 function quotationSharedQuoteId_() {
@@ -141,14 +122,5 @@ function quotationSharedHistory_() {
 }
 
 function apiSessionQuotationShared(token, action, payload) {
-  const user = quotationSharedSession_(token);
-  payload = payload || {};
-  switch (String(action || '')) {
-    case 'bootstrap': return quotationBootstrap_(user);
-    case 'catalog': return quotationCatalog_(user, payload);
-    case 'preview': return quotationPreview_(user, payload);
-    case 'saveSnapshot': return quotationSharedSaveSnapshot_(payload);
-    case 'historySnapshot': return quotationSharedHistory_();
-    default: throw new Error('Tác vụ Quotation nội bộ không hợp lệ.');
-  }
+  return apiSessionQuotationApproval(token, action, payload || {});
 }
