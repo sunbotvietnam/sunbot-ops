@@ -4,6 +4,7 @@ import path from 'node:path';
 const required = [
   'apps-script/appsscript.json','apps-script/Code.gs','apps-script/Auth.gs','apps-script/PasswordAuth.gs','apps-script/Production.gs',
   'apps-script/CommercialIntelligence.gs','apps-script/CeoIntelligence.gs','apps-script/Outreach.gs','apps-script/OutreachWorkspace.gs','apps-script/OutreachWorkspaceSafe.gs','apps-script/OutreachSyncSafe.gs','apps-script/PagesBridge.gs','apps-script/OtpHttp.gs',
+  'apps-script/QuotationApprovalApi.gs','apps-script/QuotationSharedApi.gs',
   'apps-script/Index.html','apps-script/Styles.html','apps-script/Scripts.html','apps-script/CommercialUi.html','apps-script/OutreachUi.html','apps-script/CeoCockpitUi.html',
   'frontend/index.html','frontend/app.js','frontend/pin-login.js','frontend/security-session.js','frontend/workspace.js','frontend/minimal-ui.js','frontend/minimal-ui.css','frontend/styles.css',
   'schema/sheets-schema.json','schema/roles.json','docs/AI_CONTEXT.md','docs/GOOGLE_ARCHITECTURE.md','docs/COMMERCIAL_INTELLIGENCE_DATA_ARCHITECTURE.md','README.md'
@@ -44,6 +45,10 @@ for(const raw of ['5678','3456','1234','727833'])if(passwordAuth.includes(raw)){
 const pagesBridge=fs.readFileSync('apps-script/PagesBridge.gs','utf8');
 for(const token of ['handlePagesBridge_','pinLogin','loginPinByEmail_','apiSessionOutreachSyncSafe','apiSessionOutreachWorkspaceSafe','sunbot-pages-response','https://sunbotvietnam.github.io'])if(!pagesBridge.includes(token)){console.error('Pages bridge V1 thiếu chức năng:',token);failed=true;}
 for(const forbiddenToken of ['apiSessionOutreachContact','postMessage('+"''"+', "*")','requestOtp','verifyOtp','pagesPinLogin_','loginPassword_'])if(pagesBridge.includes(forbiddenToken)){console.error('Pages bridge V1 còn route/fallback cũ:',forbiddenToken);failed=true;}
+if(!pagesBridge.includes("quotationSharedLogin_(payload.login_id||payload.identifier||'',payload.password||'')")){console.error('Pages bridge chưa nối ID + password cho Quotation V3.');failed=true;}
+const quotationApproval=fs.readFileSync('apps-script/QuotationApprovalApi.gs','utf8');
+for(const token of ['quotationApprovalLogin_','PASSWORD_HASH_SHA256','REGIONAL_MANAGER','approveQuote','rejectQuote','getQuote','exportQuote','NEEDS_APPROVAL','APPROVED','floor_price','COMMERCIAL_CLASS'])if(!quotationApproval.includes(token)){console.error('Quotation approval backend thiếu:',token);failed=true;}
+for(const forbiddenToken of ['SHARED_PASSWORD_SHA256',"password:'",'PASSWORD_HASH_SHA256:'])if(quotationApproval.includes(forbiddenToken)){console.error('Quotation approval backend chứa credential hardcode:',forbiddenToken);failed=true;}
 const otpHttp=fs.readFileSync('apps-script/OtpHttp.gs','utf8');
 if(!otpHttp.includes("action === 'pagesBridge'")){console.error('doPost V1 chưa nối GitHub Pages bridge');failed=true;}
 for(const forbiddenToken of ['adminPasswordLogin','requestOtp'])if(otpHttp.includes("action === '"+forbiddenToken+"'")){console.error('doPost V1 còn auth route cũ:',forbiddenToken);failed=true;}
