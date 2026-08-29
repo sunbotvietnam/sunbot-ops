@@ -1,5 +1,5 @@
 const QUOTATION_APPROVAL = Object.freeze({
-  VERSION: '2026.08.29-v4',
+  VERSION: '2026.08.29-v5',
   AUTH_SHEET: 'AUTH_USERS',
   HEADER_ROW: 3,
   SESSION_PREFIX: 'QUSER:',
@@ -137,7 +137,7 @@ function quotationApprovalAppendObject_(sheet, headers, record) { sheet.appendRo
 function quotationApprovalSet_(sheet,row,headers,values) { Object.keys(values).forEach(function(header){ const index=headers.indexOf(header); if (index>=0) sheet.getRange(row,index+1).setValue(values[header]); }); }
 
 function quotationApprovalQuoteHeaders_() {
-  return ['quote_id','version','created_at','created_by','client_name','client_type','combo_code','subtotal','discount_rate','discount_amount','final_amount','status','approval_required','approved_by','approved_at','notes','configuration_description','pricebook_version','customer_id','opportunity_id','region','creator_role','deal_owner','standard_amount','proposed_amount','exception_reason','commercial_fingerprint','updated_at','rejected_by','rejected_at','rejection_reason','exportable','deployment_sites','learner_count','commercial_model','recommended_model','policy_match','scale_sessions_per_month','frequency_factor','point_comparison_amount','scale_comparison_amount','comparison_difference','cheaper_model','model_exception_reason','revised_by','revision_note'];
+  return ['quote_id','version','created_at','created_by','client_name','client_type','combo_code','subtotal','discount_rate','discount_amount','final_amount','status','approval_required','approved_by','approved_at','notes','configuration_description','pricebook_version','customer_id','opportunity_id','region','creator_role','deal_owner','standard_amount','proposed_amount','exception_reason','commercial_fingerprint','updated_at','rejected_by','rejected_at','rejection_reason','exportable','deployment_sites','learner_count','commercial_model','recommended_model','policy_match','scale_program','scale_sessions_per_month','frequency_factor','point_comparison_amount','scale_comparison_amount','scale_4_amount','scale_8_amount','comparison_difference','cheaper_model','model_exception_reason','revised_by','revision_note'];
 }
 function quotationApprovalLineHeaders_() { return ['quote_id','line_no','item_id','item_name_snapshot','unit_snapshot','unit_price_snapshot','qty','discount_rate','line_total','pricing_rule_version','source_price_version','version','commercial_group','standard_unit_price','proposed_unit_price','floor_price_snapshot','exception_reason','is_custom']; }
 
@@ -146,6 +146,41 @@ function quotationApprovalAudit_(session, action, quoteId, detail) {
   if (!sheet) throw new Error('Backend thiếu bảng AUDIT_LOG.');
   const headers=quotationApprovalHeaders_(sheet,['audit_id','timestamp','user_id','action','entity_type','entity_id','detail_json'],QUOTATION_APPROVAL.HEADER_ROW);
   quotationApprovalAppendObject_(sheet,headers,{audit_id:'AUD-'+Utilities.getUuid(),timestamp:new Date(),user_id:session.login_id,action:action,entity_type:'QUOTE',entity_id:quoteId,detail_json:JSON.stringify(detail || {})});
+}
+
+function quotationApprovalScaleFactor_(sessions) { return Number(sessions) === 8 ? 1.5 : 1; }
+function quotationApprovalScaleProgramFactor_(program) {
+  const value=String(program || 'CORE').toUpperCase();
+  if (value==='STEAM') return 0.7;
+  if (value==='LT') return 1;
+  if (value==='CORE') return 1.2;
+  throw new Error('Chương trình tính phí theo quy mô không hợp lệ.');
+}
+function quotationApprovalScaleMinimum_(program) {
+  const value=String(program || 'CORE').toUpperCase();
+  if (value==='STEAM') return 18000000;
+  if (value==='LT') return 24000000;
+  if (value==='CORE') return 30000000;
+  throw new Error('Chương trình tính phí theo quy mô không hợp lệ.');
+}
+function quotationApprovalScaleFee_(learners,sessions,program,catalogById) {
+  const n=Math.max(0,quotationApprovalNumber_(learners));
+  const s=Number(sessions);
+  if (n<=0) throw new Error('Mô hình theo quy mô cần số trẻ lớn hơn 0.');
+  if ([4,8].indexOf(s)<0) throw new Error('Tần suất theo quy mô chỉ nhận 4 hoặc 8 buổi/tháng.');
+  const tiers=[['SELF_FEE_1P_T1',1,150],['SELF_FEE_1P_T2',151,300],['SELF_FEE_1P_T3',301,500],['SELF_FEE_1P_T4',501,800],['SELF_FEE_1P_T5',801,Infinity]];
+  let progressive=0;
+  tiers.forEach(function(t){
+    if (n<t[1]) return;
+    const item=catalogById[t[0]];
+    if (!item || quotationApprovalNumber_(item.recommended_price)<=0) throw new Error('Backend thiếu bậc giá theo quy mô '+t[0]+'.');
+    const count=Math.max(0,Math.min(n,t[2])-t[1]+1);
+    progressive+=count*quotationApprovalNumber_(item.recommended_price);
+  });
+  const frequency=quotationApprovalScaleFactor_(s);
+  const raw=progressive*36*frequency*quotationApprovalScaleProgramFactor_(program);
+  const minimum=quotationApprovalScaleMinimum_(program)*frequency;
+  return Math.round(Math.max(raw,minimum));
 }
 
 function quotationApprovalValidateLine_(session, requested, item, quantity, reason) {
@@ -177,13 +212,20 @@ function quotationApprovalBuildLines_(session,payload) {
   return requested.map(function(line,index){
     const itemId=String(line.item_id || line.code || '').trim(), quantity=quotationApprovalNumber_(line.qty !== undefined ? line.qty : line.quantity);
     if (!itemId || quantity<=0) throw new Error('Dòng báo giá không hợp lệ tại vị trí '+(index+1)+'.');
-    let item=byId[itemId], isCustom=false;
+    let item=byId[itemId], isCustom=false, requestedLine=line;
     if (!item) {
       if (session.role !== 'ADMIN' || !reason) throw new Error('Hạng mục tùy chỉnh cần Admin và lý do duyệt đặc biệt.');
       const standard=quotationApprovalNumber_(line.standard_unit_price || line.recommended_price || line.unit_price || line.price);
       item={item_id:itemId,name:String(line.name || 'Hạng mục tùy chỉnh').trim(),unit:String(line.unit || '').trim(),recommended_price:standard,floor_price:0,commercial_group:'CUSTOM',price_version_id:'CUSTOM'}; isCustom=true;
     }
-    const checked=quotationApprovalValidateLine_(session,line,item,quantity,reason);
+    if (itemId==='SELF_DELIVERY_SCALE_FEE') {
+      if (String(payload.commercial_model || '').toUpperCase()!=='SCALE') throw new Error('Dòng phí theo quy mô chỉ được dùng với mô hình SCALE.');
+      const expected=quotationApprovalScaleFee_(payload.learner_count,payload.scale_sessions_per_month,payload.scale_program,byId);
+      const sent=quotationApprovalNumber_(line.proposed_unit_price !== undefined ? line.proposed_unit_price : (line.unit_price !== undefined ? line.unit_price : line.price));
+      if (sent>0 && Math.abs(sent-expected)>1) throw new Error('Phí theo quy mô không khớp công thức Backend. Hãy tải lại app và tính lại báo giá.');
+      requestedLine=Object.assign({},line,{proposed_unit_price:expected,unit_price:expected,price:expected});
+    }
+    const checked=quotationApprovalValidateLine_(session,requestedLine,item,quantity,reason);
     return {line_no:index+1,item_id:item.item_id,item_name_snapshot:item.name,unit_snapshot:item.unit,unit_price_snapshot:checked.price,qty:quantity,discount_rate:checked.discount,line_total:Math.round(checked.price*quantity),pricing_rule_version:QUOTATION_APPROVAL.VERSION,source_price_version:item.price_version_id,commercial_group:item.commercial_group,standard_unit_price:checked.standard,proposed_unit_price:checked.price,floor_price_snapshot:checked.floor,exception_reason:reason,is_custom:isCustom};
   });
 }
@@ -199,10 +241,13 @@ function quotationApprovalPolicyFields_(payload,previous) {
     commercial_model:String(src.commercial_model || prev.commercial_model || ''),
     recommended_model:String(src.recommended_model || prev.recommended_model || ''),
     policy_match:src.policy_match === undefined ? quotationApprovalYes_(prev.policy_match) : quotationApprovalYes_(src.policy_match),
+    scale_program:String(src.scale_program || prev.scale_program || ''),
     scale_sessions_per_month:quotationApprovalNumber_(src.scale_sessions_per_month || prev.scale_sessions_per_month || 0),
     frequency_factor:quotationApprovalNumber_(src.frequency_factor || prev.frequency_factor || 0),
     point_comparison_amount:quotationApprovalNumber_(src.point_comparison_amount || prev.point_comparison_amount || 0),
     scale_comparison_amount:quotationApprovalNumber_(src.scale_comparison_amount || prev.scale_comparison_amount || 0),
+    scale_4_amount:quotationApprovalNumber_(src.scale_4_amount || prev.scale_4_amount || 0),
+    scale_8_amount:quotationApprovalNumber_(src.scale_8_amount || prev.scale_8_amount || 0),
     comparison_difference:quotationApprovalNumber_(src.comparison_difference || prev.comparison_difference || 0),
     cheaper_model:String(src.cheaper_model || prev.cheaper_model || ''),
     model_exception_reason:String(src.model_exception_reason || prev.model_exception_reason || '')
@@ -218,7 +263,17 @@ function quotationApprovalSave_(session,payload) {
   const reason=String(payload.exception_reason || payload.notes || '').trim();
   const policy=quotationApprovalPolicyFields_(payload,previous);
   if (policy.commercial_model && policy.recommended_model && policy.commercial_model !== policy.recommended_model && !String(policy.model_exception_reason || reason).trim()) throw new Error('Mô hình thương mại khác quy chế phải có lý do ngoại lệ.');
-  const lines=quotationApprovalBuildLines_(session,payload);
+  if (String(policy.commercial_model).toUpperCase()==='SCALE') {
+    const catalogMap={}; quotationApprovalInternalCatalog_().forEach(function(item){ catalogMap[item.item_id]=item; });
+    policy.scale_program=String(policy.scale_program || 'CORE').toUpperCase();
+    policy.frequency_factor=quotationApprovalScaleFactor_(policy.scale_sessions_per_month);
+    policy.scale_4_amount=quotationApprovalScaleFee_(policy.learner_count,4,policy.scale_program,catalogMap);
+    policy.scale_8_amount=quotationApprovalScaleFee_(policy.learner_count,8,policy.scale_program,catalogMap);
+    policy.scale_comparison_amount=Number(policy.scale_sessions_per_month)===8?policy.scale_8_amount:policy.scale_4_amount;
+    policy.comparison_difference=Math.abs(quotationApprovalNumber_(policy.point_comparison_amount)-policy.scale_comparison_amount);
+  }
+  const normalizedPayload=Object.assign({},payload,policy);
+  const lines=quotationApprovalBuildLines_(session,normalizedPayload);
   const lock=LockService.getScriptLock(); lock.waitLock(10000);
   try {
     const spreadsheet=quotationApprovalSpreadsheet_(), quoteSheet=spreadsheet.getSheetByName(QUOTATION_APPROVAL.SHEETS.QUOTES), lineSheet=spreadsheet.getSheetByName(QUOTATION_APPROVAL.SHEETS.LINES);
@@ -237,7 +292,7 @@ function quotationApprovalSave_(session,payload) {
     },policy));
     lines.forEach(function(line){ line.quote_id=generated.id; line.version=version; quotationApprovalAppendObject_(lineSheet,lineHeaders,line); });
     const action=previous && session.role==='ADMIN' ? 'QUOTE_ADMIN_REVISION' : (previous && String(previous.status)==='APPROVED' ? 'QUOTE_APPROVAL_INVALIDATED' : (version>1?'QUOTE_REVISION':'QUOTE_CREATE'));
-    quotationApprovalAudit_(session,action,generated.id,{version:version,status:'NEEDS_APPROVAL',standard_amount:standard,proposed_amount:proposed,discount_rate:discountRate,previous_status:previous?String(previous.status||''):'',configuration_description:configurationDescription,revised_by:revisedBy,revision_note:revisionNote,commercial_model:policy.commercial_model,recommended_model:policy.recommended_model,policy_match:policy.policy_match});
+    quotationApprovalAudit_(session,action,generated.id,{version:version,status:'NEEDS_APPROVAL',standard_amount:standard,proposed_amount:proposed,discount_rate:discountRate,previous_status:previous?String(previous.status||''):'',configuration_description:configurationDescription,revised_by:revisedBy,revision_note:revisionNote,commercial_model:policy.commercial_model,recommended_model:policy.recommended_model,policy_match:policy.policy_match,scale_program:policy.scale_program,scale_sessions_per_month:policy.scale_sessions_per_month,scale_4_amount:policy.scale_4_amount,scale_8_amount:policy.scale_8_amount});
     return {ok:true,quote_id:generated.id,quote_code:generated.display,version:version,status:'NEEDS_APPROVAL',exportable:false,created_by:originalCreator,display_name:session.display_name,region:originalRegion,standard_amount:standard,final_amount:proposed,configuration_description:configurationDescription,revised_by:revisedBy};
   } finally { lock.releaseLock(); }
 }
