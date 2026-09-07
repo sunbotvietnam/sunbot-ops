@@ -66,7 +66,11 @@ function quotationArtifactBuildDocument_(bundle, stage) {
     body.appendParagraph(mode==='LEGACY'?'PHƯƠNG ÁN TÁI KHỞI ĐỘNG':'THUYẾT MINH CẤU HÌNH').setBold(true).setForegroundColor('#c45a13').setSpacingBefore(12);
     narrative.split(/\n\s*\n/).filter(Boolean).forEach(function(block){
       const raw=String(block||'').trim();
-      const text=raw.replace(/^##\s*/,'').replace(/\bAdmin\b/gi,'Kiro Việt Nam');
+      const text=raw
+        .replace(/^##\s*/,'')
+        .replace(/\bAdmin\b/gi,'Kiro Việt Nam')
+        .replace(/phòng\s*\/\s*lab/gi,'phòng học/phòng công nghệ')
+        .replace(/\blab\b/gi,'phòng công nghệ');
       if(/^##\s*/.test(raw)||/^\d+\./.test(text)) body.appendParagraph(text).setBold(true).setForegroundColor('#0f766e');
       else body.appendParagraph(text).setFontSize(9);
     });
