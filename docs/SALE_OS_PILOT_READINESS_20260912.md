@@ -47,11 +47,12 @@ Không dùng file `7.9_SUNBOT_SCHOOL_OS_PRODUCTION` làm database production c�
 - `Next Action` đổi thành `Việc tiếp theo` ở giao diện Sale.
 - Ẩn nút/module Discovery và Opportunity chưa hoạt động để đúng nguyên tắc: không có nút trông như dùng được nhưng thực tế chưa chạy.
 - Không sửa V1 Commercial UI; pilot tập trung đúng vào School OS V2.
+- **Đã hardening credential V2:** login chấp nhận credential bootstrap hiện hành một lần, sau đó lưu verifier HMAC và xóa giá trị mật khẩu đọc được khỏi Sheet. Vì vậy việc xóa plaintext diễn ra an toàn dần theo lần đăng nhập, không cắt đăng nhập của người dùng trước khi họ vào lần đầu.
 
 ### Gate còn phải xử lý trước pilot thật
 1. **Phase 1 E2E chưa được xác nhận trên runtime production V2:** đăng nhập → mở trường → ghi kết quả → đặt việc tiếp theo → kiểm tra Hôm nay.
 2. `INTERACTIONS` và `NEXT_ACTIONS` hiện chưa có dữ liệu pilot đủ để kiểm chứng hành vi thực địa.
-3. **Bảo mật đăng nhập V2 cần hardening:** database hiện còn cơ chế mật khẩu hiển thị để bootstrap. Trước pilot thật phải chuyển sang verifier/hash và không để mật khẩu đọc được trong Sheet.
+3. Sau deployment, cần xác nhận lần đăng nhập đầu thực sự tạo `password_hash` và xóa `password_visible` cho user pilot; không coi source-code pass là runtime pass.
 4. Chưa bật Discovery/Opportunity. Việc này chỉ làm sau khi Phase 1 pass, đúng `PHASE1_ACCEPTANCE.md`.
 5. Chưa migrate lịch sử từ Sổ theo dõi chuyển tiếp; giai đoạn pilot chỉ đối chiếu một tập nhỏ, không chuyển hàng loạt.
 
@@ -60,7 +61,7 @@ Không dùng file `7.9_SUNBOT_SCHOOL_OS_PRODUCTION` làm database production c�
 - Chỉ pilot 1–2 Sale và một tập nhỏ trường thật.
 - Sale chỉ dùng Web App; không mở database Sheet để làm việc.
 - Không yêu cầu Sale học tên bảng/schema/thuật ngữ kỹ thuật.
-- Với Phase 1, mục tiêu là tạo thói quen: **mỗi trao đổi có kết quả; mỗi trường active có một việc tiếp theo có hạn**.
+- Với Phase 1, mục tiêu là tạo thói quen: **mỗi trao đổi có kết quả; mỗi trường đang theo dõi có một việc tiếp theo có hạn**.
 
 ## Trình tự thực hiện
 ### Giai đoạn A — Hoàn thiện Phase 1
@@ -76,8 +77,8 @@ Không dùng file `7.9_SUNBOT_SCHOOL_OS_PRODUCTION` làm database production c�
 - Đối chiếu dữ liệu và quan sát điểm người dùng bị vướng.
 
 ### Giai đoạn C — Phase 2
-- Bật Discovery Wizard bằng 8 câu hỏi gần với Sales Handbook.
-- Chỉ sinh Opportunity khi Need Statement đủ rõ.
+- Bật Khám phá nhu cầu bằng 8 câu hỏi gần với Sales Handbook.
+- Chỉ sinh Opportunity khi nhu cầu được diễn đạt đủ rõ.
 - Nối Opportunity → phương án/báo giá.
 
 ### Giai đoạn D — Cutover
@@ -89,9 +90,9 @@ Không dùng file `7.9_SUNBOT_SCHOOL_OS_PRODUCTION` làm database production c�
 ## Gate để chuyển hẳn
 Chỉ cutover khi đủ:
 1. Login/permission ổn định và không lưu mật khẩu đọc được.
-2. Interaction + Next Action chạy E2E.
+2. Ghi kết quả + Việc tiếp theo chạy E2E.
 3. Màn Hôm nay phản ánh đúng việc đến hạn/quá hạn.
 4. Dữ liệu pilot đối chiếu đúng với Sổ theo dõi chuyển tiếp.
 5. Đầu mối trường không bị mất.
 6. 1–2 Sale pilot hoàn thành tác vụ cơ bản mà không cần mở Sheet hoặc hỏi cách dùng hệ thống.
-7. Discovery/Opportunity được bật và test sau Phase 1, trước khi bỏ hoàn toàn hệ cũ.
+7. Khám phá nhu cầu/Cơ hội được bật và test sau Phase 1, trước khi bỏ hoàn toàn hệ cũ.
