@@ -18,15 +18,34 @@ function apiSessionV2(sessionToken,action,payload){
 
 function v2Login_(loginId,password){
   loginId=String(loginId||'').trim().toLowerCase();password=String(password||'').trim();
-  if(!loginId||!password)throw new Error('Cần nhập ID và mật khẩu.');
+  if(!loginId||!password)throw new Error('Cần nhập email và mật khẩu.');
   const user=v2Rows_(V2_OS.S.USERS).find(function(r){return String(r.login_id||'').trim().toLowerCase()===loginId&&v2Truthy_(r.active);});
-  if(!user||String(user.password_visible||'')!==password)throw new Error('ID hoặc mật khẩu không đúng.');
+  if(!user||!v2CredentialMatches_(user,password))throw new Error('Email hoặc mật khẩu không đúng.');
+  v2MigrateCredentialIfNeeded_(user,password);
   const token='v2_'+Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
   const session={user_id:user.user_id,login_id:user.login_id,display_name:user.display_name,role_code:user.role_code,manager_user_id:user.manager_user_id||''};
   CacheService.getScriptCache().put('V2SESSION:'+token,JSON.stringify(session),V2_OS.SESSION_TTL);
   v2Audit_('USER',user.user_id,'LOGIN','','','SUCCESS',user.user_id);
   return {token:token,user:session};
 }
+function v2CredentialMatches_(user,password){
+  const stored=String(user.password_hash||'').trim();
+  if(stored){const actual=v2PasswordHash_(String(user.login_id||'').trim().toLowerCase(),password);return v2ConstantTimeEqual_(stored,actual);}
+  return String(user.password_visible||'')===String(password||'');
+}
+function v2MigrateCredentialIfNeeded_(user,password){
+  if(String(user.password_hash||'').trim()&&!String(user.password_visible||'').trim())return;
+  const hash=v2PasswordHash_(String(user.login_id||'').trim().toLowerCase(),password);
+  v2UpdateById_(V2_OS.S.USERS,'user_id',user.user_id,{password_hash:hash,password_visible:'',updated_at:v2Now_()});
+  v2Audit_('USER',user.user_id,'CREDENTIAL_MIGRATED','password_visible','SET','CLEARED',user.user_id);
+}
+function v2PasswordHash_(loginId,password){
+  const props=PropertiesService.getScriptProperties();let pepper=props.getProperty('V2_PASSWORD_PEPPER');
+  if(!pepper){pepper=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');props.setProperty('V2_PASSWORD_PEPPER',pepper);}
+  const bytes=Utilities.computeHmacSha256Signature(String(loginId)+'\n'+String(password),pepper,Utilities.Charset.UTF_8);
+  return 'HMAC256:'+bytes.map(function(b){const v=(b<0?b+256:b).toString(16);return v.length===1?'0'+v:v;}).join('');
+}
+function v2ConstantTimeEqual_(a,b){a=String(a||'');b=String(b||'');let diff=a.length^b.length,n=Math.max(a.length,b.length);for(let i=0;i<n;i++)diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return diff===0;}
 function v2RequireSession_(token){const raw=CacheService.getScriptCache().get('V2SESSION:'+String(token||''));if(!raw)throw new Error('Phiên đăng nhập đã hết hạn.');return JSON.parse(raw);}
 function v2Bootstrap_(u){return {user:u,can:{view_all:u.role_code==='ADMIN',assign:u.role_code==='ADMIN'||u.role_code==='LEADER',approve_proposal:u.role_code==='ADMIN'||u.role_code==='LEADER',admin_users:u.role_code==='ADMIN'},schema_version:'2.0.0',server_time:new Date().toISOString()};}
 function v2CanSeeSchool_(u,r){if(u.role_code==='ADMIN')return true;if(String(r.current_owner_id||'')===String(u.user_id))return true;if(u.role_code==='LEADER'&&String(r.leader_id||'')===String(u.user_id))return true;return false;}
