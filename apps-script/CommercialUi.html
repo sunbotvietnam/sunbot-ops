@@ -1,5 +1,7 @@
 <script>
 (function(){
+  let OPP_CACHE={};
+
   function ccall(action,payload,onOk){
     setLoading(true);
     google.script.run
@@ -52,6 +54,8 @@
 
   function loadOpps(){
     ccall('opportunities',{},rows=>{
+      OPP_CACHE={};
+      (rows||[]).forEach(o=>{OPP_CACHE[String(o.opp_id||'')]=o;});
       const host=document.getElementById('commercialBody');
       const total=rows.reduce((s,r)=>s+Number(r.gia_tri_du_kien||0),0);
       host.innerHTML=`<div class="hint" style="margin-bottom:12px"><b>Chỉ cần nhớ:</b> một cơ hội đang làm phải có <b>tình hình hiện tại + việc tiếp theo + ngày cần làm</b>.</div>
@@ -62,7 +66,8 @@
 
   function oppHtml(o){
     const next=o.viec_tiep_theo?`<div class="task-sub"><b>Việc tiếp theo:</b> ${esc(o.viec_tiep_theo)}${o.han_viec_tiep_theo?' · '+esc(String(o.han_viec_tiep_theo).slice(0,10)):''}</div>`:'';
-    return `<div class="account"><div><b>${esc(o.ten_co_hoi)}</b><div class="task-sub">${esc(o.san_pham||'')} · ${esc(stageLabel(o.trang_thai||''))}</div>${next}</div><div style="text-align:right"><b>${money(o.gia_tri_du_kien)}</b><div class="task-sub">Khả năng ${esc(o.xac_suat||0)}%</div><button class="btn ghost" style="margin-top:6px" onclick='openOpportunityUpdate(${JSON.stringify(JSON.stringify(o))})'>Cập nhật</button></div></div>`;
+    const oppId=String(o.opp_id||'').replace(/[^A-Za-z0-9_-]/g,'');
+    return `<div class="account"><div><b>${esc(o.ten_co_hoi)}</b><div class="task-sub">${esc(o.san_pham||'')} · ${esc(stageLabel(o.trang_thai||''))}</div>${next}</div><div style="text-align:right"><b>${money(o.gia_tri_du_kien)}</b><div class="task-sub">Khả năng ${esc(o.xac_suat||0)}%</div><button class="btn ghost" style="margin-top:6px" onclick="openOpportunityUpdate('${oppId}')">Cập nhật</button></div></div>`;
   }
 
   function stageLabel(v){return ({TARGET:'Mới xác định',CONTACTED:'Đã liên hệ',DISCOVERY:'Đang tìm hiểu nhu cầu',PROPOSAL:'Đã gửi đề xuất',NEGOTIATION:'Đang thương lượng',WON:'Đã chốt',LOST:'Không tiếp tục',HOLD:'Tạm dừng'})[v]||v;}
@@ -78,9 +83,10 @@
     ccall('createOpportunity',p,r=>{toast(r.message||'Đã tạo');loadOpps();});
   };
 
-  window.openOpportunityUpdate=function(raw){
-    const o=JSON.parse(raw),host=document.getElementById('oppUpdate'); if(!host)return;
-    host.innerHTML=`<div class="card" style="margin:10px 0;background:#fff7ed"><h3>Cập nhật: ${esc(o.ten_co_hoi||'Cơ hội')}</h3><div class="form-grid"><div class="field"><label>Tình hình hiện tại *</label><select id="cu_stage" class="input"><option value="TARGET">Mới xác định</option><option value="CONTACTED">Đã liên hệ</option><option value="DISCOVERY">Đang tìm hiểu nhu cầu</option><option value="PROPOSAL">Đã gửi đề xuất</option><option value="NEGOTIATION">Đang thương lượng</option><option value="WON">Đã chốt</option><option value="HOLD">Tạm dừng</option><option value="LOST">Không tiếp tục</option></select></div><div class="field"><label>Kết quả vừa có *</label><input id="cu_result" class="input" placeholder="Nêu kết quả cụ thể, không chỉ ghi 'đã gọi'"></div><div class="field"><label>Việc tiếp theo *</label><input id="cu_next" class="input" value="${esc(o.viec_tiep_theo||'')}" placeholder="Một việc cụ thể"></div><div class="field"><label>Ngày cần làm *</label><input id="cu_due" type="date" class="input" value="${esc(String(o.han_viec_tiep_theo||'').slice(0,10))}"></div><div class="field"><label>Lý do nếu không tiếp tục</label><input id="cu_lost" class="input" placeholder="Chỉ cần điền khi chọn Không tiếp tục"></div><div class="field"><label>Tiền dự kiến về (nếu đã rõ)</label><input id="cu_cash" type="date" class="input" value="${esc(String(o.expected_cash_date||'').slice(0,10))}"></div></div><button class="btn" style="margin-top:10px" onclick="saveOpportunityUpdate('${esc(o.opp_id)}')">Lưu cập nhật</button></div>`;
+  window.openOpportunityUpdate=function(oppId){
+    const o=OPP_CACHE[String(oppId||'')],host=document.getElementById('oppUpdate'); if(!o||!host)return;
+    const safeOppId=String(o.opp_id||'').replace(/[^A-Za-z0-9_-]/g,'');
+    host.innerHTML=`<div class="card" style="margin:10px 0;background:#fff7ed"><h3>Cập nhật: ${esc(o.ten_co_hoi||'Cơ hội')}</h3><div class="form-grid"><div class="field"><label>Tình hình hiện tại *</label><select id="cu_stage" class="input"><option value="TARGET">Mới xác định</option><option value="CONTACTED">Đã liên hệ</option><option value="DISCOVERY">Đang tìm hiểu nhu cầu</option><option value="PROPOSAL">Đã gửi đề xuất</option><option value="NEGOTIATION">Đang thương lượng</option><option value="WON">Đã chốt</option><option value="HOLD">Tạm dừng</option><option value="LOST">Không tiếp tục</option></select></div><div class="field"><label>Kết quả vừa có *</label><input id="cu_result" class="input" placeholder="Nêu kết quả cụ thể, không chỉ ghi 'đã gọi'"></div><div class="field"><label>Việc tiếp theo *</label><input id="cu_next" class="input" value="${esc(o.viec_tiep_theo||'')}" placeholder="Một việc cụ thể"></div><div class="field"><label>Ngày cần làm *</label><input id="cu_due" type="date" class="input" value="${esc(String(o.han_viec_tiep_theo||'').slice(0,10))}"></div><div class="field"><label>Lý do nếu không tiếp tục</label><input id="cu_lost" class="input" placeholder="Chỉ cần điền khi chọn Không tiếp tục"></div><div class="field"><label>Tiền dự kiến về (nếu đã rõ)</label><input id="cu_cash" type="date" class="input" value="${esc(String(o.expected_cash_date||'').slice(0,10))}"></div></div><button class="btn" style="margin-top:10px" onclick="saveOpportunityUpdate('${safeOppId}')">Lưu cập nhật</button></div>`;
     const stage=document.getElementById('cu_stage'); if(stage)stage.value=String(o.trang_thai||'TARGET');
     host.scrollIntoView({behavior:'smooth',block:'start'});
   };
