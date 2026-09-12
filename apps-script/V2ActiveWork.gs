@@ -19,23 +19,28 @@
   function activeWorkList_(u,payload){
     payload=payload||{};
     const users=v2UserMap_(),actions=v2CurrentActionMap_(),opps=activeOpportunityMap_();
+    const proposals=typeof v2ProposalPendingBySchool_==='function'?v2ProposalPendingBySchool_():{};
     const includeNoAction=String(payload.include_no_action||'')==='1'||payload.include_no_action===true;
     return v2Rows_(V2_OS.S.SCHOOLS)
       .filter(function(r){
         if(!v2Truthy_(r.active)||!v2CanSeeSchool_(u,r))return false;
-        const hasAction=!!actions[r.school_id],hasOpp=!!opps[r.school_id];
-        return hasAction||hasOpp||(includeNoAction&&['ENGAGED','DISCOVERY','OPPORTUNITY','CUSTOMER'].indexOf(String(r.relationship_state||'').toUpperCase())>=0);
+        const hasAction=!!actions[r.school_id],hasOpp=!!opps[r.school_id],hasProposal=!!proposals[r.school_id];
+        return hasAction||hasOpp||hasProposal||(includeNoAction&&['ENGAGED','DISCOVERY','OPPORTUNITY','CUSTOMER'].indexOf(String(r.relationship_state||'').toUpperCase())>=0);
       })
       .map(function(r){
-        const view=v2SchoolView_(r,actions[r.school_id],users),opp=opps[r.school_id]||null;
-        view.active_reason=actions[r.school_id]?'NEXT_ACTION':opp?'OPEN_OPPORTUNITY':'RELATIONSHIP_REVIEW';
+        const view=v2SchoolView_(r,actions[r.school_id],users),opp=opps[r.school_id]||null,proposal=proposals[r.school_id]||null;
+        view.active_reason=actions[r.school_id]?'NEXT_ACTION':proposal?'WAITING_ADMIN':opp?'OPEN_OPPORTUNITY':'RELATIONSHIP_REVIEW';
         view.opportunity_id=opp?String(opp.opportunity_id||''):'';
         view.opportunity_stage=opp?String(opp.stage||''):'';
         view.opportunity_status=opp?String(opp.status||''):'';
+        view.proposal_snapshot_id=proposal?String(proposal.proposal_snapshot_id||''):'';
+        view.proposal_status=proposal?String(proposal.status||''):'';
         return view;
       })
       .sort(function(a,b){
         if(a.overdue!==b.overdue)return a.overdue?-1:1;
+        if(a.active_reason==='WAITING_ADMIN'&&b.active_reason!=='WAITING_ADMIN')return -1;
+        if(b.active_reason==='WAITING_ADMIN'&&a.active_reason!=='WAITING_ADMIN')return 1;
         if(!!a.next_action_date!==!!b.next_action_date)return a.next_action_date?-1:1;
         return String(a.next_action_date||'9999-12-31').localeCompare(String(b.next_action_date||'9999-12-31'))||String(a.school_name||'').localeCompare(String(b.school_name||''),'vi');
       });
@@ -52,7 +57,7 @@
     if(a==='today')return activeToday_(u);
     if(a==='summary'){
       const rows=activeWorkList_(u,{}),today=v2DateOnly_(new Date());
-      return {active:rows.length,overdue:rows.filter(function(x){return x.overdue;}).length,today:rows.filter(function(x){return String(x.next_action_date||'')===today;}).length,waiting_admin:0};
+      return {active:rows.length,overdue:rows.filter(function(x){return x.overdue;}).length,today:rows.filter(function(x){return String(x.next_action_date||'')===today;}).length,waiting_admin:rows.filter(function(x){return x.active_reason==='WAITING_ADMIN';}).length};
     }
     throw new Error('Tác vụ Active Work không hợp lệ.');
   };
