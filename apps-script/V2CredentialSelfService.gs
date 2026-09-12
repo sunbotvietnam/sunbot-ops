@@ -1,0 +1,3 @@
+// SUNBOT School OS V2 — credential self service
+function v2CredentialState_(u){v2EnsureUserHeaders_();const r=v2Rows_(V2_OS.S.USERS).find(function(x){return String(x.user_id)===String(u.user_id);});if(!r)throw new Error('Không tìm thấy tài khoản.');return {user_id:r.user_id,must_change_password:v2Truthy_(r.must_change_password)};}
+function apiSessionV2Credential(sessionToken,action,payload){const u=v2RequireSession_(sessionToken),a=String(action||'');if(a==='state')return v2CredentialState_(u);if(a==='change_password')return v2ChangeOwnPassword_(u,payload||{});throw new Error('Tác vụ mật khẩu không hợp lệ.');}
