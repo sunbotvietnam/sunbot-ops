@@ -53,7 +53,6 @@ const otpHttp=fs.readFileSync('apps-script/OtpHttp.gs','utf8');
 if(!otpHttp.includes("action === 'pagesBridge'")){console.error('doPost V1 chưa nối GitHub Pages bridge');failed=true;}
 for(const forbiddenToken of ['adminPasswordLogin','requestOtp'])if(otpHttp.includes("action === '"+forbiddenToken+"'")){console.error('doPost V1 còn auth route cũ:',forbiddenToken);failed=true;}
 
-// V1 hiện hành dùng ID=email + mật khẩu 6 số. Session hardening nằm ở security-session.js.
 const pinLogin=fs.readFileSync('frontend/pin-login.js','utf8');
 for(const token of ['pinLogin','loginWithPin','ID đăng nhập','Mật khẩu','current-password'])if(!pinLogin.includes(token)){console.error('GitHub Pages V1 login hiện hành thiếu:',token);failed=true;}
 for(const raw of ['5678','3456','1234','727833'])if(pinLogin.includes(raw)){console.error('Không được lưu PIN cũ trong frontend V1.');failed=true;}
@@ -64,7 +63,6 @@ for(const token of ['Content-Security-Policy','security-session.js','minimal-ui.
 const minimalUi=fs.readFileSync('frontend/minimal-ui.js','utf8');
 for(const token of ['Kết nối','Đặt lịch','Ghi nhận','Việc tiếp theo','Mở hồ sơ','Tìm trường'])if(!minimalUi.includes(token)){console.error('Minimal UI V1 thiếu hành động:',token);failed=true;}
 
-// V2 validation: additive, isolated data model and Vietnamese UI.
 const v2Required=['apps-script/V2SchoolOS.gs','frontend/v2/index.html','frontend/v2/styles.css','frontend/v2/brand.css','frontend/v2/api.js','frontend/v2/app.js','v2/docs/ARCHITECTURE.md','v2/docs/PHASE1_ACCEPTANCE.md'];
 const hasV2=v2Required.some(f=>fs.existsSync(f));
 if(hasV2){
@@ -73,12 +71,12 @@ if(hasV2){
   const v2Server=fs.readFileSync('apps-script/V2SchoolOS.gs','utf8');
   for(const token of ['apiSessionV2','SCHOOLS','INTERACTIONS','NEXT_ACTIONS','v2CreateInteraction_','v2CreateAction_','SUPERSEDED'])if(!v2Server.includes(token)){console.error('Backend V2 thiếu nguyên tắc core:',token);failed=true;}
   const v2App=fs.readFileSync('frontend/v2/app.js','utf8');
-  for(const token of ['Hôm nay','Trường','Cơ hội','Ghi nhận tương tác','Đặt việc tiếp theo','Khám phá nhu cầu'])if(!v2App.includes(token)){console.error('Frontend V2 thiếu UI tiếng Việt:',token);failed=true;}
+  for(const token of ['Hôm nay','Trường','Ghi kết quả trao đổi','Đặt việc tiếp theo','PHÁT TRIỂN TRƯỜNG','Đầu mối nhà trường'])if(!v2App.includes(token)){console.error('Frontend V2 pilot thiếu UI tiếng Việt:',token);failed=true;}
+  for(const forbiddenToken of ['Discovery Wizard sẽ được bật','Phase 1 chưa bật tạo cơ hội'])if(v2App.includes(forbiddenToken)){console.error('Frontend V2 Phase 1 còn nút/module chưa hoạt động:',forbiddenToken);failed=true;}
   const v2Api=fs.readFileSync('frontend/v2/api.js','utf8');
   for(const token of ["mode:'v2'",'sessionStorage','auth.login','schools.detail','interactions.create','next_actions.create'])if(!v2Api.includes(token)){console.error('Frontend V2 API thiếu:',token);failed=true;}
   const v2Brand=fs.readFileSync('frontend/v2/brand.css','utf8');
   if(!v2Brand.includes('portal/assets/img/logo-sunbot.png')){console.error('V2 chưa dùng logo Sunbot canonical.');failed=true;}
-  // Không cho phép credential thực tế xuất hiện trong public V2 source.
   const v2Public=[v2Server,v2App,v2Api,v2Brand].join('\n');
   for(const secret of ['190682','756448','990647','259694','123456'])if(v2Public.includes(secret)){console.error('V2 public source chứa mật khẩu thật.');failed=true;}
 }
