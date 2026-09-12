@@ -22,6 +22,7 @@ function qswV2User_(session){
 }
 function qswContext_(token){const session=qswQuotationSession_(token);return {session:session,v2:qswV2User_(session)};}
 function qswRequireV2_(ctx){if(!ctx.v2)throw new Error('Tài khoản này chưa được liên kết với Sunbot School OS. Hãy báo Admin để liên kết một lần.');return ctx.v2;}
+function qswRequireAdmin_(ctx){if(String(ctx.session.role||'').toUpperCase()!=='ADMIN')throw new Error('Chỉ Admin được thực hiện tác vụ migration dữ liệu.');}
 
 function qswBootstrap_(ctx){
   return {version:QUOTATION_SALES_WORKSPACE_V25.VERSION,school_os_linked:!!ctx.v2,school_os_user:ctx.v2||null,quotation_user:{login_id:ctx.session.login_id,display_name:ctx.session.display_name,role:ctx.session.role,region:ctx.session.region}};
@@ -87,5 +88,7 @@ function apiSessionQuotationSalesWorkspace(token,action,payload){
   if(a==='next_actions.create')return qswCreateNextAction_(ctx,p);
   if(a==='next_actions.complete')return qswCompleteNextAction_(ctx,p);
   if(a==='proposal.submit')return qswSubmitProposal_(ctx,p);
+  if(a==='migration.preview'){qswRequireAdmin_(ctx);return svmPreview20260912();}
+  if(a==='migration.run'){qswRequireAdmin_(ctx);return svmRun20260912();}
   throw new Error('Tác vụ Sale Workspace không hợp lệ.');
 }
