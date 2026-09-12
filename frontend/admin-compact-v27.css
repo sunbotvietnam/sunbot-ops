@@ -1,0 +1,12 @@
+/* Admin-only compact presentation: action first, explanation second. */
+body.admin-compact .content>.hero p{display:none}
+body.admin-compact .content>.hero .kicker{display:none}
+body.admin-compact .content>.hero{margin-bottom:12px;align-items:center}
+body.admin-compact .content>.hero h1{font-size:23px;margin:0}
+body.admin-compact .content>.metrics{margin:10px 0 14px}
+body.admin-compact .drawer-panel .section p{display:none}
+body.admin-compact .drawer-panel .kicker{font-size:10px}
+body.admin-compact .calculator-head{padding:10px 13px}
+body.admin-compact .card .next span{font-size:10px}
+body.admin-compact .content{padding-top:16px}
+@media(max-width:760px){body.admin-compact .content>.hero{margin-bottom:9px}body.admin-compact .content>.hero h1{font-size:21px}}
