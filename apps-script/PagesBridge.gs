@@ -1,7 +1,7 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
-const SUNBOT_PAGES_BRIDGE_VERSION = '2026-09-12-v27-governance-commercial-credential';
+const SUNBOT_PAGES_BRIDGE_VERSION = '2026-09-12-v28-document-release';
 function handlePagesBridge_(e){
-  const p=e&&e.parameter?e.parameter:{};
+  const p=e&&e.parameter?p=e.parameter:e.parameter;
   const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
   const mode=String(p.mode||'').trim();
   const token=String(p.token||'').trim();
@@ -13,6 +13,7 @@ function handlePagesBridge_(e){
     else if(mode==='v2Active') result=apiSessionV2Active(token,String(p.subaction||''),payload);
     else if(mode==='v2Proposal') result=apiSessionV2Proposal(token,String(p.subaction||''),payload);
     else if(mode==='v2Commercial') result=apiSessionV2Commercial(token,String(p.subaction||''),payload);
+    else if(mode==='v2Documents') result=apiSessionV2Documents(token,String(p.subaction||''),payload);
     else if(mode==='v2Admin') result=apiSessionV2Admin(token,String(p.subaction||''),payload);
     else if(mode==='v2Credential') result=apiSessionV2Credential(token,String(p.subaction||''),payload);
     else if(mode==='pinLogin') result=loginPinByEmail_(payload.login_id||payload.email||payload.identifier||'',payload.pin||'');
