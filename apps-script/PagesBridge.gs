@@ -1,7 +1,7 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
 const SUNBOT_PAGES_BRIDGE_VERSION = '2026-09-12-v28-document-release';
 function handlePagesBridge_(e){
-  const p=e&&e.parameter?p=e.parameter:e.parameter;
+  const p=e&&e.parameter?e.parameter:{};
   const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
   const mode=String(p.mode||'').trim();
   const token=String(p.token||'').trim();
