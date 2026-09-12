@@ -1,0 +1,17 @@
+// Admin Hồ sơ V28 — operational release screen from locked Commercial Snapshot.
+(function(){
+  let docsCache=[];
+  function byCommercial(id){return docsCache.filter(function(d){return String(d.commercial_snapshot_id)===String(id);});}
+  function fmtDate(v){return String(v||'').slice(0,16).replace('T',' ');}
+  function openUrl(url){if(url)window.open(url,'_blank','noopener');}
+  async function refreshDocs(){try{docsCache=await bridge('v2Documents','list',{})||[];}catch(e){docsCache=[];toast(e.message,true);}}
+  function documentButtons(d){return `<div class="actions" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${d.doc_url?`<button class="btn secondary open-doc" data-url="${esc(d.doc_url)}">Google Doc</button>`:''}${d.pdf_url?`<button class="btn secondary open-doc" data-url="${esc(d.pdf_url)}">PDF</button>`:''}${d.folder_url?`<button class="btn ghost open-doc" data-url="${esc(d.folder_url)}">Thư mục</button>`:''}</div>`;}
+  function bindDocActions(){document.querySelectorAll('.open-doc').forEach(function(b){b.onclick=function(){openUrl(b.dataset.url);};});document.querySelectorAll('.prepare-folder').forEach(function(b){b.onclick=async function(){const id=b.dataset.id;b.disabled=true;try{const r=await call('v2Documents','prepare',{commercial_snapshot_id:id});toast('Đã sẵn sàng thư mục hồ sơ.');openUrl(r.folder_url);}catch(e){toast(e.message,true);}finally{b.disabled=false;}};});document.querySelectorAll('.create-summary').forEach(function(b){b.onclick=async function(){const id=b.dataset.id;b.disabled=true;const old=b.textContent;b.textContent='ĐANG TẠO…';try{const r=await call('v2Documents','createSummary',{commercial_snapshot_id:id});toast(r.reused?'Tóm tắt đã có — mở bản hiện hành.':'Đã tạo Tóm tắt phương án.');await refreshDocs();documentsView();openUrl(r.doc_url);}catch(e){toast(e.message,true);}finally{b.disabled=false;b.textContent=old;}};});}
+  documentsView=async function(){
+    el('content').innerHTML='<section class="hero"><div><h1>Hồ sơ</h1></div></section><div class="empty">Đang tải…</div>';
+    await refreshDocs();
+    const rows=state.commercial||[];
+    el('content').innerHTML=`<section class="hero"><div><h1>Hồ sơ</h1></div></section><section class="cards">${rows.length?rows.map(function(c){const ds=byCommercial(c.commercial_snapshot_id),summary=ds.find(function(d){return d.document_type==='PLAN_SUMMARY';});return `<article class="card"><div class="card-top"><div><span class="pill">v${Number(c.version||1)}</span><h3>${esc(c.school_name)}</h3><div class="meta"><span>${esc(c.commercial_snapshot_id)}</span><span>${esc(c.pricebook_version||'')}</span><span>${esc(fmtDate(c.locked_at))}</span></div></div><span class="pill">${summary?'ĐÃ CÓ HỒ SƠ':'SẴN SÀNG'}</span></div><div class="actions" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px"><button class="btn secondary prepare-folder" data-id="${esc(c.commercial_snapshot_id)}">Mở thư mục</button><button class="btn create-summary" data-id="${esc(c.commercial_snapshot_id)}">${summary?'Mở / kiểm tra tóm tắt':'Tạo tóm tắt phương án'}</button></div>${ds.length?`<div style="margin-top:12px">${ds.map(function(d){return `<div class="next"><span>${esc(d.document_name||d.document_type)}</span><b>${esc(d.status||'READY')}</b><small>${esc(fmtDate(d.created_at))}</small>${documentButtons(d)}</div>`;}).join('')}</div>`:''}</article>`;}).join(''):'<div class="empty">Chưa có Commercial Snapshot đã khóa.</div>'}</section>`;
+    bindDocActions();
+  };
+})();
