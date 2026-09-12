@@ -35,14 +35,16 @@ AI_FEED
 - Web App chạy dưới quyền deployer nên nhân viên không cần quyền trực tiếp với Google Sheets/Drive.
 
 ## Production owner hiện tại
-Tài khoản Google sở hữu hệ thống: `hrmanager.kiro@gmail.com`.
+Tài khoản Google sở hữu production hiện tại: `tuongvan1906@gmail.com`.
+
+Nguồn xác nhận canonical: `docs/PRODUCTION_OWNER.md` và dữ liệu `NHAN_SU` trong `SUNBOT_OPS_DATABASE`.
 
 Drive production đã có:
 - folder `SUNBOT OPS`;
 - các folder `00_SYSTEM`, `01_TRUONG_DOI_TAC`, `02_HO_SO_THANH_TOAN`, `03_DE_XUAT_HOP_DONG`, `04_MINH_CHUNG`, `05_BAO_CAO`, `99_BACKUP`;
 - Google Sheet `SUNBOT_OPS_DATABASE` đặt trong `00_SYSTEM`;
 - schema V1 gồm NHAN_SU, VAI_TRO, NHAN_SU_VAI_TRO, QUYEN_VAI_TRO, TRUONG, CO_HOI, CONG_VIEC, CAP_NHAT, VAN_DE, CONG_NO, BAO_CAO_TUAN, AI_FEED, AUDIT_LOG;
-- user khởi tạo `hrmanager.kiro@gmail.com` với role ADMIN + CEO;
+- user khởi tạo `tuongvan1906@gmail.com` với role ADMIN + CEO;
 - role/permission cơ bản đã được seed.
 
 ## Web App production
