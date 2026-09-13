@@ -1,0 +1,28 @@
+name: Bootstrap School Profile Master
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap-school-profile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap materialized school profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://script.google.com/macros/s/AKfycbw32BGSXwFVOpRCknx5hn8-k2m5ZXox26_y2mnZKVWL0JKHCv_Qtly5JiY0FS9e87kU/exec'
+          BODY="$(curl -fsSLG "$URL" \
+            --data-urlencode 'mode=profileBootstrapOnce' \
+            --data-urlencode 'bootstrap_key=p2-20260913-6f45a0e1' \
+            --data-urlencode 'request_id=school-profile-bootstrap')"
+          printf '%s\n' "$BODY"
+          printf '%s' "$BODY" | grep -q '"ok":true'
+          printf '%s' "$BODY" | grep -q '"count":94'
