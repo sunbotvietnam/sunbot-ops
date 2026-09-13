@@ -1,4 +1,4 @@
-const V2_OS=Object.freeze({DB_ID:'19UA9f8R5onFTHc77cPIYxIyG2a6ugytpvwi8Y0l0Xf8',SESSION_TTL:21600,S:{USERS:'USERS',SCHOOLS:'SCHOOLS',INTERACTIONS:'INTERACTIONS',ACTIONS:'NEXT_ACTIONS',DISCOVERIES:'DISCOVERIES',OPPS:'OPPORTUNITIES',PROPOSALS:'PROPOSALS',DOCUMENTS:'DOCUMENTS',AUDIT:'AUDIT_LOG'}});
+const V2_OS=Object.freeze({DB_ID:'19UA9f8R5onFTHc77cPIYxIyG2a6ugytpvwi8Y0l0Xf8',SESSION_TTL:21600,S:{USERS:'USERS',SCHOOLS:'SCHOOLS',INTERACTIONS:'INTERACTIONS',ACTIONS:'NEXT_ACTIONS',DISCOVERIES:'DISCOVERIES',OPPS:'OPPORTUNITIES',PROPOSALS:'PROPOSALS',DOCUMENTS:'DOCUMENTS',AUDIT:'AUDIT_LOG',CONTACTS:'CONTACTS',INTELLIGENCE:'SCHOOL_INTELLIGENCE',LINEAGE:'SCHOOL_LINEAGE'}});
 
 function apiSessionV2(sessionToken,action,payload){
   payload=payload||{};action=String(action||'');
@@ -47,14 +47,29 @@ function v2PasswordHash_(loginId,password){
 }
 function v2ConstantTimeEqual_(a,b){a=String(a||'');b=String(b||'');let diff=a.length^b.length,n=Math.max(a.length,b.length);for(let i=0;i<n;i++)diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return diff===0;}
 function v2RequireSession_(token){const raw=CacheService.getScriptCache().get('V2SESSION:'+String(token||''));if(!raw)throw new Error('Phiên đăng nhập đã hết hạn.');return JSON.parse(raw);}
-function v2Bootstrap_(u){return {user:u,can:{view_all:u.role_code==='ADMIN',assign:u.role_code==='ADMIN'||u.role_code==='LEADER',approve_proposal:u.role_code==='ADMIN'||u.role_code==='LEADER',admin_users:u.role_code==='ADMIN'},schema_version:'2.0.0',server_time:new Date().toISOString()};}
+function v2Bootstrap_(u){return {user:u,can:{view_all:u.role_code==='ADMIN',assign:u.role_code==='ADMIN'||u.role_code==='LEADER',approve_proposal:u.role_code==='ADMIN'||u.role_code==='LEADER',admin_users:u.role_code==='ADMIN'},schema_version:'2.0.1-lineage',server_time:new Date().toISOString()};}
 function v2CanSeeSchool_(u,r){if(u.role_code==='ADMIN')return true;if(String(r.current_owner_id||'')===String(u.user_id))return true;if(u.role_code==='LEADER'&&String(r.leader_id||'')===String(u.user_id))return true;return false;}
 function v2ListSchools_(u,filters){
   const users=v2UserMap_(),actions=v2CurrentActionMap_();
   return v2Rows_(V2_OS.S.SCHOOLS).filter(function(r){return v2Truthy_(r.active)&&v2CanSeeSchool_(u,r);}).map(function(r){return v2SchoolView_(r,actions[r.school_id],users);});
 }
 function v2Today_(u){const t=v2DateOnly_(new Date());return v2ListSchools_(u,{}).filter(function(s){return s.overdue||String(s.next_action_date||'')===t;}).sort(function(a,b){if(a.overdue!==b.overdue)return a.overdue?-1:1;return String(a.next_action_date||'').localeCompare(String(b.next_action_date||''));});}
-function v2SchoolDetail_(u,id){const s=v2Rows_(V2_OS.S.SCHOOLS).find(function(r){return String(r.school_id)===String(id);});if(!s||!v2CanSeeSchool_(u,s))throw new Error('Không có quyền xem trường này.');const interactions=v2Rows_(V2_OS.S.INTERACTIONS).filter(function(r){return String(r.school_id)===String(id);}).sort(function(a,b){return String(b.interaction_at||'').localeCompare(String(a.interaction_at||''));}).slice(0,80);const a=v2CurrentActionMap_()[id]||null;return {school:v2SchoolView_(s,a,v2UserMap_()),interactions:interactions,next_action:a};}
+function v2LineageScope_(id){
+  const allowed={CONFIRMED:true,CONFIRMED_WITH_SOURCE_CONFLICT:true},ids=[String(id)],links=[];
+  let rows=[];try{rows=v2Rows_(V2_OS.S.LINEAGE)}catch(e){return{ids:ids,links:links}}
+  rows.forEach(function(r){const current=String(r.current_school_id||''),legacy=String(r.legacy_school_id||''),status=String(r.status||'').toUpperCase();if(current===String(id)&&legacy&&allowed[status]){if(ids.indexOf(legacy)<0)ids.push(legacy);links.push(r)}});
+  return{ids:ids,links:links};
+}
+function v2SchoolNameMap_(){const m={};v2Rows_(V2_OS.S.SCHOOLS).forEach(function(r){m[String(r.school_id||'')]=String(r.school_name||'')});return m;}
+function v2SchoolDetail_(u,id){
+  const s=v2Rows_(V2_OS.S.SCHOOLS).find(function(r){return String(r.school_id)===String(id);});if(!s||!v2CanSeeSchool_(u,s))throw new Error('Không có quyền xem trường này.');
+  const scope=v2LineageScope_(id),scopeSet={},names=v2SchoolNameMap_();scope.ids.forEach(function(x){scopeSet[String(x)]=true});
+  const interactions=v2Rows_(V2_OS.S.INTERACTIONS).filter(function(r){return scopeSet[String(r.school_id||'')];}).map(function(r){const x=Object.assign({},r);x.origin_school_id=String(r.school_id||'');x.origin_school_name=names[x.origin_school_id]||'';x.is_predecessor=x.origin_school_id!==String(id);return x;}).sort(function(a,b){return String(b.interaction_at||'').localeCompare(String(a.interaction_at||''));}).slice(0,200);
+  let contacts=[],intelligence=[];try{contacts=v2Rows_(V2_OS.S.CONTACTS).filter(function(r){return scopeSet[String(r.school_id||'')];}).map(function(r){const x=Object.assign({},r);x.origin_school_id=String(r.school_id||'');x.origin_school_name=names[x.origin_school_id]||'';x.is_predecessor=x.origin_school_id!==String(id);return x;})}catch(e){}
+  try{intelligence=v2Rows_(V2_OS.S.INTELLIGENCE).filter(function(r){return scopeSet[String(r.school_id||'')];}).map(function(r){const x=Object.assign({},r);x.origin_school_id=String(r.school_id||'');x.origin_school_name=names[x.origin_school_id]||'';x.is_predecessor=x.origin_school_id!==String(id);return x;})}catch(e){}
+  const a=v2CurrentActionMap_()[id]||null;
+  return{school:v2SchoolView_(s,a,v2UserMap_()),interactions:interactions,next_action:a,contacts:contacts,intelligence:intelligence,lineage:scope.links,history_scope:scope.ids.map(function(x){return{school_id:x,school_name:names[x]||'',is_current:x===String(id)}})};
+}
 function v2SchoolView_(s,a,users){const due=a&&a.due_date?String(a.due_date).slice(0,10):'',today=v2DateOnly_(new Date());return {school_id:s.school_id,school_name:s.school_name,school_type:s.school_type,province:s.province,district:s.district,address:s.address,website:s.website,contact_name:s.contact_name,contact_role:s.contact_role,contact_email:s.contact_email,contact_phone:s.contact_phone,current_owner_id:s.current_owner_id,leader_id:s.leader_id,current_owner_name:(users[s.current_owner_id]||{}).display_name||'',relationship_state:s.relationship_state||'TARGET',next_action:a?a.action_text:'',next_action_id:a?a.action_id:'',next_action_date:due,overdue:!!(due&&due<today&&String(a.status)==='OPEN')};}
 function v2CurrentActionMap_(){const m={};v2Rows_(V2_OS.S.ACTIONS).filter(function(r){return String(r.status)==='OPEN';}).forEach(function(r){const p=m[r.school_id];if(!p||String(r.due_date||'')<String(p.due_date||''))m[r.school_id]=r;});return m;}
 function v2UserMap_(){const m={};v2Rows_(V2_OS.S.USERS).forEach(function(r){m[r.user_id]=r;});return m;}
