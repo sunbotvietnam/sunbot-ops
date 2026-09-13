@@ -19,10 +19,11 @@ jobs:
         run: |
           set -euo pipefail
           URL='https://script.google.com/macros/s/AKfycbw32BGSXwFVOpRCknx5hn8-k2m5ZXox26_y2mnZKVWL0JKHCv_Qtly5JiY0FS9e87kU/exec'
-          BODY="$(curl -fsSLG "$URL" \
+          BODY="$(curl -fsSL -X POST "$URL" \
+            --data-urlencode 'action=pagesBridge' \
             --data-urlencode 'mode=profileBootstrapOnce' \
             --data-urlencode 'bootstrap_key=p2-20260913-6f45a0e1' \
-            --data-urlencode 'request_id=school-profile-bootstrap-v2')"
+            --data-urlencode 'request_id=school-profile-bootstrap-v3')"
           printf '%s\n' "$BODY"
           printf '%s' "$BODY" | grep -q '"ok":true'
           printf '%s' "$BODY" | grep -q '"count":94'
