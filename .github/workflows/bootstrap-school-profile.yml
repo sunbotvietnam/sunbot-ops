@@ -22,7 +22,7 @@ jobs:
           BODY="$(curl -fsSLG "$URL" \
             --data-urlencode 'mode=profileBootstrapOnce' \
             --data-urlencode 'bootstrap_key=p2-20260913-6f45a0e1' \
-            --data-urlencode 'request_id=school-profile-bootstrap')"
+            --data-urlencode 'request_id=school-profile-bootstrap-v2')"
           printf '%s\n' "$BODY"
           printf '%s' "$BODY" | grep -q '"ok":true'
           printf '%s' "$BODY" | grep -q '"count":94'
