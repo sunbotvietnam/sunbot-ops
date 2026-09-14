@@ -1,0 +1,67 @@
+name: Patch School Model 2026 backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-school-model-2026.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch V2 School Profile Master additively
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('apps-script/V2SchoolProfileMasterV2.gs')
+          s=p.read_text()
+          old="'source_version','active','updated_at','updated_by']"
+          new="'source_version','active','updated_at','updated_by','school_ownership','organization_structure','merger_status','campus_count','delivery_model_current','delivery_model_proposed','teacher_source','payer_model','approval_status','policy_note']"
+          if old not in s and new not in s:
+              raise SystemExit('HEADERS anchor not found')
+          s=s.replace(old,new,1)
+          old_list="steam_status:p.steam_status,next_action:p.next_action,risk:p.risk,updated_at:p.updated_at}))"
+          new_list="steam_status:p.steam_status,next_action:p.next_action,risk:p.risk,updated_at:p.updated_at,school_ownership:p.school_ownership,organization_structure:p.organization_structure,merger_status:p.merger_status,campus_count:p.campus_count,delivery_model_current:p.delivery_model_current,delivery_model_proposed:p.delivery_model_proposed,teacher_source:p.teacher_source,payer_model:p.payer_model,approval_status:p.approval_status,policy_note:p.policy_note}))"
+          if old_list not in s and new_list not in s:
+              raise SystemExit('profiles.list anchor not found')
+          s=s.replace(old_list,new_list,1)
+          old_allowed="profile_note:1,data_quality_note:1};"
+          new_allowed="profile_note:1,data_quality_note:1,school_ownership:1,organization_structure:1,merger_status:1,campus_count:1,delivery_model_current:1,delivery_model_proposed:1,teacher_source:1,payer_model:1,approval_status:1,policy_note:1};"
+          if old_allowed not in s and new_allowed not in s:
+              raise SystemExit('allowed fields anchor not found')
+          s=s.replace(old_allowed,new_allowed,1)
+          # Keep rebuild backward-compatible: appended fields default blank unless a current source already carries them.
+          old_obj="data_quality_note:'',source_version:'7.9+V2 bootstrap '+V2P2.VERSION,active:true,updated_at:now,updated_by:actor||'SYSTEM'};"
+          new_obj="data_quality_note:'',source_version:'7.9+V2 bootstrap '+V2P2.VERSION,active:true,updated_at:now,updated_by:actor||'SYSTEM',school_ownership:v2p2T_(s.school_ownership),organization_structure:v2p2T_(s.organization_structure),merger_status:v2p2T_(s.merger_status),campus_count:v2p2T_(s.campus_count),delivery_model_current:v2p2T_(s.delivery_model_current),delivery_model_proposed:v2p2T_(s.delivery_model_proposed),teacher_source:v2p2T_(s.teacher_source),payer_model:v2p2T_(s.payer_model),approval_status:v2p2T_(s.approval_status),policy_note:v2p2T_(s.policy_note)};"
+          if old_obj in s:
+              s=s.replace(old_obj,new_obj,1)
+          p.write_text(s)
+          PY
+      - name: Validate patch
+        shell: bash
+        run: |
+          grep -q "school_ownership" apps-script/V2SchoolProfileMasterV2.gs
+          grep -q "organization_structure" apps-script/V2SchoolProfileMasterV2.gs
+          grep -q "delivery_model_proposed" apps-script/V2SchoolProfileMasterV2.gs
+          grep -q "policy_note" apps-script/V2SchoolProfileMasterV2.gs
+      - name: Commit backend patch
+        shell: bash
+        run: |
+          git config user.name 'sunbotvietnam'
+          git config user.email 'kiroteam2025@gmail.com'
+          git add apps-script/V2SchoolProfileMasterV2.gs
+          if git diff --cached --quiet; then
+            echo 'No backend changes needed.'
+          else
+            git commit -m 'Extend School Profile Master for School Model 2026'
+            git push
+          fi
