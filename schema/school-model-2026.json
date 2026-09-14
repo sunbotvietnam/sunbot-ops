@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "canonical_doc": "docs/SCHOOL_MODEL_2026_CANONICAL.md",
+  "fields": {
+    "school_ownership": ["PUBLIC", "PRIVATE", "PRIVATE_SYSTEM", "OTHER"],
+    "organization_structure": ["SINGLE_SITE", "MULTI_CAMPUS", "MULTI_SCHOOL_GROUP", "CLUSTER"],
+    "merger_status": ["INDEPENDENT", "POST_MERGER", "PENDING_VERIFY"],
+    "delivery_model": ["DIRECT", "CO_DELIVERY", "SCHOOL_LED", "SYSTEM_MULTI_SITE"],
+    "teacher_source": ["SUNBOT", "SCHOOL", "LOCAL", "MIXED", "UNKNOWN"],
+    "payer_model": ["PARENT", "SCHOOL", "PUBLIC_BUDGET", "SPONSOR", "MIXED", "UNKNOWN"],
+    "approval_status": ["CLEAR", "NEED_REVIEW", "NEED_APPROVAL", "PILOT", "UNKNOWN"]
+  },
+  "school_account_rules": {
+    "same_legal_unit_multi_campus": "One school account with multiple campus records",
+    "independent_schools_same_group": "Separate school accounts linked to one group/system",
+    "principle": "MULTI_CAMPUS is not MULTI_SCHOOL_GROUP"
+  },
+  "campus_entity": {
+    "name": "DIEM_TRUONG",
+    "fields": [
+      "campus_id",
+      "account_id",
+      "campus_name",
+      "address",
+      "children",
+      "classes",
+      "room_status",
+      "equipment_status",
+      "teacher_status",
+      "deployment_status",
+      "note",
+      "updated_at"
+    ]
+  }
+}
