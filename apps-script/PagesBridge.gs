@@ -1,5 +1,5 @@
 const SUNBOT_PAGES_ORIGIN = 'https://sunbotvietnam.github.io';
-const SUNBOT_PAGES_BRIDGE_VERSION = '2026-09-13-v33-school-profile-master-v2-secured';
+const SUNBOT_PAGES_BRIDGE_VERSION = '2026-09-23-v34-school-intake-governed';
 function handlePagesBridge_(e){
   const p=e&&e.parameter?e.parameter:{};
   const requestId=String(p.request_id||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
@@ -14,6 +14,7 @@ function handlePagesBridge_(e){
     else if(mode==='v2Legacy') result=apiSessionV2Legacy(token,String(p.subaction||''),payload);
     else if(mode==='v2Active') result=apiSessionV2Active(token,String(p.subaction||''),payload);
     else if(mode==='v2Proposal') result=apiSessionV2Proposal(token,String(p.subaction||''),payload);
+    else if(mode==='v2Intake') result=apiSessionV2Intake(token,String(p.subaction||''),payload);
     else if(mode==='v2Commercial') result=apiSessionV2Commercial(token,String(p.subaction||''),payload);
     else if(mode==='v2Documents') result=apiSessionV2Documents(token,String(p.subaction||''),payload);
     else if(mode==='v2DocMapping') result=apiSessionV2DocMapping(token,String(p.subaction||''),payload);

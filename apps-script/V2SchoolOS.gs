@@ -74,6 +74,7 @@ function v2SchoolView_(s,a,users){const due=a&&a.due_date?String(a.due_date).sli
 function v2CurrentActionMap_(){const m={};v2Rows_(V2_OS.S.ACTIONS).filter(function(r){return String(r.status)==='OPEN';}).forEach(function(r){const p=m[r.school_id];if(!p||String(r.due_date||'')<String(p.due_date||''))m[r.school_id]=r;});return m;}
 function v2UserMap_(){const m={};v2Rows_(V2_OS.S.USERS).forEach(function(r){m[r.user_id]=r;});return m;}
 function v2CreateSchool_(u,p){
+  if(String(u.role_code||'').toUpperCase()!=='ADMIN')throw new Error('Sale không tạo trường chính thức. Hãy gửi Đề xuất trường để Admin duyệt.');
   const name=v2Clean_(p.school_name,180),province=v2Clean_(p.province,100);if(!name||!province)throw new Error('Tên trường và tỉnh/thành là bắt buộc.');
   const users=v2UserMap_();let owner=String(p.current_owner_id||u.user_id),leader='';
   if(u.role_code==='STAFF')owner=u.user_id;
